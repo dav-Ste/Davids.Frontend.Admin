@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f6fb">
+  <meta name="description" content="Administrator OIDC SSO sign-in for Davids.Frontend.Admin.">
+  <title>Davids | Administrator Sign In</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/login.css">
+  <script src="/login.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <main id="login-screen" class="auth-shell">
+    <section class="auth-story" aria-label="About Davids Admin Web frontend">
+      <a class="brand brand-light" href="/login" aria-label="Davids Admin sign in">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none"><path d="M7 12.5 20 5l13 7.5v15L20 35 7 27.5v-15Z" stroke="currentColor" stroke-width="2"/><path d="m13 21 4.2 4.2L27.5 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-name">davids<span class="brand-dot">.</span></span>
+      </a>
+      <div class="story-copy">
+        <p class="eyebrow eyebrow-light">ADMINISTRATION ONLY · OPENID CONNECT</p>
+        <h1>Dedicated administrator access to customer operations.</h1>
+        <p class="story-description">Davids.Frontend.Admin uses a confidential OAuth 2.1 Authorization Code + PKCE (<code>S256</code>) Backend-for-Frontend flow at <code>Davids.APIGateway</code> backed by the isolated <code>Davids.Services.AdminIdentity</code> OIDC provider.</p>
+        <div class="story-points">
+          <div class="story-point">
+            <span class="point-icon point-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span>
+              <strong>Isolated RS256 OIDC authority</strong>
+              <small>Administrator accounts live in <code>adminidentitydb</code> and sign tokens with dedicated RSA keys published via JWKS discovery.</small>
+            </span>
+          </div>
+          <div class="story-point">
+            <span class="point-icon point-icon-mint">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </span>
+            <span>
+              <strong>Zero frontend credential or token exposure</strong>
+              <small>Passwords are entered only on the Admin Identity OIDC provider, and tokens stay sealed inside an encrypted <code>HttpOnly</code> Gateway BFF cookie.</small>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="story-footer">
+        <span class="story-orbit orbit-a"></span>
+        <span class="story-orbit orbit-b"></span>
+        <span>Davids Services <span class="footer-separator">/</span> Davids.Frontend.Admin</span>
+        <span class="footer-version">.NET 10 · OIDC</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-labelledby="login-title">
+      <div class="auth-card">
+        <a class="brand brand-compact" href="/login" aria-label="Davids Admin sign in">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M7 12.5 20 5l13 7.5v15L20 35 7 27.5v-15Z" stroke="currentColor" stroke-width="2"/><path d="m13 21 4.2 4.2L27.5 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="brand-name">davids<span class="brand-dot">.</span></span>
+        </a>
+        <div class="auth-heading">
+          <p class="eyebrow">DAVIDS.FRONTEND.ADMIN</p>
+          <h2 id="login-title">Administrator Single Sign-On</h2>
+          <p id="login-subtitle">Continue to the isolated Davids Admin Identity OpenID Connect provider to authenticate with Authorization Code + PKCE. Customer accounts cannot sign in here.</p>
+        </div>
+
+        <div class="form-stack">
+          <div id="login-message" class="inline-message" role="alert" hidden></div>
+
+          <button id="oidc-login-submit" class="button button-primary button-wide" type="button">
+            <span id="login-submit-label">Continue with Admin OIDC</span>
+            <span id="login-spinner" class="spinner" hidden></span>
+            <svg class="button-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <div class="auth-divider"><span></span><small>OAUTH 2.1 + PKCE BFF</small><span></span></div>
+        <p class="auth-security">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Issued by <code>Davids.Services.AdminIdentity</code> (<code>RS256</code> JWKS) and terminated at <code>Davids.APIGateway</code> (<code>/auth/login</code> → <code>/signin-oidc</code>).
+        </p>
+      </div>
+      <p class="auth-legal">Need administrator access? Existing administrators can provision accounts inside the console.</p>
+    </section>
+  </main>
+</body>
+</html>

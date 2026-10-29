@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f6fb">
+  <meta name="description" content="Administrator-only customer search, editing, and administrator account management for Davids Services.">
+  <title>Davids | Admin Web frontend</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <div id="workspace" class="workspace">
+    <aside class="sidebar">
+      <a class="brand brand-sidebar" href="/" aria-label="Davids Admin Web frontend">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M7 12.5 20 5l13 7.5v15L20 35 7 27.5v-15Z" stroke="currentColor" stroke-width="2"/><path d="m13 21 4.2 4.2L27.5 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="brand-name">davids<span class="brand-dot">.</span></span>
+      </a>
+      <div class="workspace-label">ADMIN CONSOLE</div>
+      <nav class="side-nav" aria-label="Main navigation">
+        <button id="nav-directory" class="nav-item active" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M3.8 19v-1.2a5.2 5.2 0 0 1 10.4 0V19H3.8Zm12-8.3a3 3 0 1 0-.1-5.9m1 9.6a4.5 4.5 0 0 1 3.5 4.4V19h-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Customers</span>
+          <span class="nav-badge">DIR</span>
+        </button>
+        <button id="nav-admins" class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Administrators</span>
+          <span class="nav-badge">IAM</span>
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-help">
+          <span class="help-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6"/></svg></span>
+          <span>
+            <strong>Isolated storage</strong>
+            <small>Admins in <code>adminidentitydb</code>; customers in <code>identitydb</code> &amp; <code>customersdb</code>.</small>
+          </span>
+        </div>
+        <div class="sidebar-footnote">DAVIDS SERVICES <span>·</span> ADMIN WEB FRONTEND</div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumb">
+          <span>Admin</span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <strong id="breadcrumb-title">Customer Directory</strong>
+        </div>
+        <div class="topbar-actions">
+          <span class="connection-chip"><span class="connection-dot"></span>AdminBearer verified</span>
+          <button id="refresh-workspace" class="icon-button" type="button" aria-label="Refresh workspace data" title="Refresh">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="user-identity">
+            <span id="user-avatar" class="avatar">A</span>
+            <span class="user-label">
+              <strong id="user-name">Administrator</strong>
+              <small id="user-role">admin</small>
+            </span>
+          </div>
+          <button id="logout-button" class="button button-quiet" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+        <section id="directory-view" class="page-view">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">CUSTOMER ADMINISTRATION</p>
+              <h1>Search &amp; edit customers</h1>
+              <p class="page-subtitle">Search customer records stored in <code>customersdb</code> across name, email, address and ID, filter by standing or tier, and edit customer profiles.</p>
+            </div>
+            <button id="directory-refresh" class="button button-outline" type="button">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <div class="directory-kpi-grid">
+            <article class="kpi-card"><small>MATCHING CUSTOMERS</small><strong id="directory-total">—</strong><span>Filtered result count</span></article>
+            <article class="kpi-card"><small>VALID PROFILES</small><strong id="directory-valid-count">0</strong><span>Completed &amp; active</span></article>
+            <article class="kpi-card"><small>NEEDS ATTENTION</small><strong id="directory-attention-count">0</strong><span>Incomplete, suspicious or locked</span></article>
+            <article class="kpi-card"><small>VIP CUSTOMERS</small><strong id="directory-vip-count">0</strong><span>20+ completed orders</span></article>
+          </div>
+
+          <article class="surface-card directory-card">
+            <div class="directory-toolbar">
+              <div class="directory-toolbar-head">
+                <h2>Customer records</h2>
+                <p class="muted-copy">Select any customer row or click Edit customer to update name, email, address or state.</p>
+              </div>
+              <div class="directory-filters" role="search" aria-label="Search and filter customers">
+                <label class="search-wrap" for="directory-search">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                  <input id="directory-search" type="search" placeholder="Search name, email, address or ID" aria-label="Search customers by name, email, address or ID">
+                </label>
+                <select id="directory-state-filter" class="filter-select" aria-label="Filter by state">
+                  <option value="">All states</option>
+                  <option value="valid">Valid</option>
+                  <option value="incomplete">Incomplete</option>
+                  <option value="suspicious">Suspicious</option>
+                  <option value="locked">Locked</option>
+                </select>
+                <select id="directory-vip-filter" class="filter-select" aria-label="Filter by customer tier">
+                  <option value="">All tiers</option>
+                  <option value="true">VIP only</option>
+                  <option value="false">Standard only</option>
+                </select>
+                <button id="directory-clear-filters" class="button button-quiet clear-filter-button" type="button" hidden>Clear</button>
+              </div>
+            </div>
+            <div id="directory-loading" class="loading-panel"><span class="spinner spinner-dark"></span><span>Searching customer records…</span></div>
+            <div id="directory-error" class="inline-message" role="alert" hidden></div>
+            <div id="directory-table-wrap" class="table-wrap" hidden>
+              <table class="customer-table">
+                <thead>
+                  <tr>
+                    <th>CUSTOMER</th>
+                    <th>ADDRESS</th>
+                    <th>STATUS &amp; ORDERS</th>
+                    <th>CREATED</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="directory-table-body"></tbody>
+              </table>
+              <div id="directory-empty" class="table-empty" hidden>No customers match your current search and filters.</div>
+            </div>
+          </article>
+          <p class="directory-footnote">Searches and edits execute through the API Gateway (<code>GET /customers</code> &amp; <code>PUT /customers/{customerId}</code>) with OIDC <code>AdminBffCookie</code> / <code>RS256</code> <code>AdminBearer</code> enforced at both the Gateway and Customers API.</p>
+        </section>
+
+        <section id="admins-view" class="page-view" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">ADMIN IDENTITY (ADMINIDENTITYDB)</p>
+              <h1>Administrator accounts</h1>
+              <p class="page-subtitle">Manage administrator logins stored in the dedicated <code>Davids.Services.AdminIdentity</code> database. Public registration is disabled; only signed-in administrators can provision new admin accounts.</p>
+            </div>
+            <button id="admins-refresh" class="button button-outline" type="button">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">SIGNED-IN ADMINISTRATOR</span><span class="stat-icon stat-icon-blue"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+              <strong id="admin-self-email" class="stat-email">—</strong>
+              <small id="admin-self-id">Verifying session…</small>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">PROVISIONED ADMINS</span><span class="stat-icon stat-icon-violet"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 20v-1.5a7 7 0 0 1 14 0V20H5Z" stroke="currentColor" stroke-width="1.7"/></svg></span></div>
+              <strong id="admins-total-count" class="stat-number">—</strong>
+              <small>Accounts in <code>adminidentitydb</code></small>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-label">IDENTITY ISOLATION</span><span class="stat-icon stat-icon-amber"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.7"/></svg></span></div>
+              <strong class="stat-number">Enforced</strong>
+              <small>Separate DB, Vault secret &amp; JWT key</small>
+            </article>
+          </div>
+
+          <div class="profile-grid">
+            <article class="surface-card directory-card">
+              <div class="directory-toolbar">
+                <div class="directory-toolbar-head">
+                  <h2>Registered administrators</h2>
+                  <p class="muted-copy">All accounts below hold the <code>admin</code> role in <code>Davids.Services.AdminIdentity</code>.</p>
+                </div>
+              </div>
+              <div id="admins-loading" class="loading-panel"><span class="spinner spinner-dark"></span><span>Loading administrator accounts…</span></div>
+              <div id="admins-error" class="inline-message" role="alert" hidden></div>
+              <div id="admins-table-wrap" class="table-wrap" hidden>
+                <table class="customer-table admin-table">
+                  <thead>
+                    <tr>
+                      <th>ADMINISTRATOR EMAIL</th>
+                      <th>ROLE</th>
+                      <th>CREATED</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admins-table-body"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="surface-card complete-card">
+              <div class="form-card-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v8m-4-4h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+              <p class="eyebrow">PROVISION ADMIN</p>
+              <h2>Add administrator</h2>
+              <p class="muted-copy">Create a new administrator account in <code>adminidentitydb</code>. Passwords must be at least 12 characters.</p>
+              <form id="create-admin-form" class="form-stack" novalidate>
+                <label class="field-label" for="new-admin-email">Email address</label>
+                <input class="text-input" id="new-admin-email" name="email" type="email" maxlength="320" autocomplete="off" placeholder="ops-admin@davids.local" required>
+                <label class="field-label" for="new-admin-password">Initial password (12+ chars)</label>
+                <input class="text-input" id="new-admin-password" name="password" type="password" minlength="12" maxlength="200" autocomplete="new-password" placeholder="At least 12 characters" required>
+                <div id="create-admin-message" class="inline-message" role="alert" hidden></div>
+                <button id="create-admin-submit" class="button button-primary button-wide" type="submit">
+                  Provision administrator
+                  <svg class="button-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </form>
+            </article>
+          </div>
+
+          <article class="surface-card directory-card audit-log-card">
+            <div class="directory-toolbar">
+              <div class="directory-toolbar-head">
+                <p class="eyebrow">SECURITY AUDIT TRAIL</p>
+                <h2>Administrator login attempts (<span id="admin-audit-count">0</span>)</h2>
+                <p class="muted-copy">Append-only authentication audit records persisted in <code>adminidentitydb</code> without credentials or tokens.</p>
+              </div>
+              <div class="directory-filters">
+                <select class="filter-select" id="admin-audit-outcome-filter" aria-label="Filter login audit outcome">
+                  <option value="all">All outcomes</option>
+                  <option value="succeeded">Succeeded only</option>
+                  <option value="failed">Failed / rejected only</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="customer-table audit-table">
+                <thead>
+                  <tr>
+                    <th>TIMESTAMP (UTC)</th>
+                    <th>ACCOUNT</th>
+                    <th>OUTCOME</th>
+                    <th>CLIENT IP</th>
+                    <th>OIDC CLIENT</th>
+                    <th>CORRELATION ID</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-audits-tbody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </div>
+      <footer class="main-footer"><span>DAVIDS SERVICES</span><span>Admin Web frontend (Davids.Frontend.Admin) <b>·</b> <span id="footer-year"></span></span></footer>
+    </main>
+  </div>
+
+  <div id="customer-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <button id="modal-backdrop" class="modal-backdrop" type="button" aria-label="Close customer editor"></button>
+    <section class="modal-panel">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">CUSTOMER RECORD</p>
+          <h2 id="modal-title">Edit customer</h2>
+          <div class="modal-id-row">
+            <p id="modal-id" class="modal-id"></p>
+            <button id="modal-copy-id" class="copy-id-button" type="button">Copy ID</button>
+          </div>
+        </div>
+        <button id="modal-close" class="icon-button modal-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </div>
+      <div id="modal-loading" class="loading-panel"><span class="spinner spinner-dark"></span><span>Loading record…</span></div>
+      <div id="modal-content" hidden>
+        <div class="modal-topline">
+          <span id="modal-state-pill" class="state-pill">—</span>
+          <span id="modal-vip-badge" class="vip-badge" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 2.5 5.2 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>VIP</span>
+          <span class="modal-meta-inline">Member since <strong id="modal-created">—</strong> · <strong id="modal-orders-count">0</strong> completed orders</span>
+        </div>
+
+        <div id="modal-orders-section" class="modal-orders" hidden><small>COMPLETED ORDER IDS</small><div id="modal-orders-list" class="order-list"></div></div>
+
+        <form id="modal-edit-form" class="modal-section customer-edit-form" novalidate>
+          <div>
+            <p class="eyebrow">EDIT CUSTOMER</p>
+            <h3>Profile details &amp; account state</h3>
+            <p class="muted-copy">Update the customer’s full name, email address, delivery address and standing.</p>
+          </div>
+
+          <div class="edit-grid">
+            <div>
+              <label class="field-label" for="modal-name-input">Full name</label>
+              <input class="text-input" id="modal-name-input" name="fullName" type="text" maxlength="200" placeholder="Customer full name" required>
+            </div>
+            <div>
+              <label class="field-label" for="modal-email-input">Email address</label>
+              <input class="text-input" id="modal-email-input" name="email" type="email" maxlength="320" placeholder="customer@example.com" required>
+            </div>
+            <div class="edit-wide">
+              <label class="field-label" for="modal-address-input">Delivery address</label>
+              <textarea class="text-input text-area" id="modal-address-input" name="address" maxlength="500" rows="2" placeholder="Street, city and postcode" required></textarea>
+            </div>
+            <div class="edit-wide">
+              <label class="field-label" for="modal-state-select">Account state</label>
+              <div class="state-edit-controls">
+                <select id="modal-state-select" class="text-input select-input" name="state">
+                  <option value="valid">Valid</option>
+                  <option value="incomplete">Incomplete</option>
+                  <option value="suspicious">Suspicious</option>
+                  <option value="locked">Locked</option>
+                </select>
+                <button id="modal-save-state" class="button button-outline" type="button" title="Update account state without requiring name or address">Update state only</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="modal-message" class="inline-message" role="status" hidden></div>
+
+          <div class="modal-edit-actions">
+            <button id="modal-reset-edit" class="button button-outline" type="button">Reset</button>
+            <button id="modal-edit-submit" class="button button-primary" type="submit">Save customer changes</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer"><span class="lock-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Protected by API Gateway &amp; Customers API</span><button id="modal-done" class="button button-quiet" type="button">Close</button></div>
+    </section>
+  </div>
+</body>
+</html>
