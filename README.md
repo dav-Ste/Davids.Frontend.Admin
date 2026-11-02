@@ -1,5 +1,8 @@
 # Davids.Frontend.Admin
 
+[![Pull Request CI — Security Gate](https://github.com/dav-Ste/Davids.Frontend.Admin/actions/workflows/pull-request-ci.yml/badge.svg?branch=main)](https://github.com/dav-Ste/Davids.Frontend.Admin/actions/workflows/pull-request-ci.yml)
+[![Pull Request CI — CodeQL SAST](https://github.com/dav-Ste/Davids.Frontend.Admin/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/dav-Ste/Davids.Frontend.Admin/actions/workflows/codeql.yml)
+
 `Davids.Frontend.Admin` hosts the separated **Admin Web frontend** (`Davids | Admin Web frontend`) for the Davids microservices platform on `.NET 10`.
 
 ## Passwordless Frontend & Gateway OIDC BFF Security
