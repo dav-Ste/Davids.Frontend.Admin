@@ -316,6 +316,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .modal-footer .button { min-height: 31px; }
 .toast { position: fixed; z-index: 40; top: 84px; right: 28px; max-width: min(390px, calc(100vw - 32px)); padding: 12px 15px; border: 1px solid #cce9df; border-radius: 11px; color: #19765d; background: #f1fbf7; box-shadow: 0 10px 30px rgba(32, 80, 67, .13); font-size: 10px; line-height: 1.5; animation: appear .2s ease both; }
 .toast.error { color: #9d424a; border-color: #f1cdd0; background: #fff6f6; }
+.workforce-side-stack { display: flex; flex-direction: column; gap: 16px; }
+.inline-iam-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.diff-chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.diff-chip { padding: 3px 7px; border-radius: 6px; background: #f3f6fb; border: 1px solid #dfe5f0; font-size: 10px; color: #24324a; }
+.modal-support-box { margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: #f7f9fc; border: 1px solid #e3e9f4; display: flex; flex-direction: column; gap: 10px; }
+.modal-support-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.modal-customer-audits { margin-top: 14px; padding-top: 12px; border-top: 1px solid #edf0f5; }
+.modal-audit-list { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; font-size: 11px; color: #475467; }
+.modal-audit-item { padding: 5px 8px; border-radius: 7px; background: #f9fafc; border: 1px solid #edf0f5; }
 
 @media (max-width: 1120px) {
   .auth-shell { grid-template-columns: minmax(340px, .9fr) minmax(440px, 1.1fr); }

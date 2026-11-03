@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f6fb">
-  <meta name="description" content="Administrator-only customer search, editing, and administrator account management for Davids Services.">
+  <meta name="description" content="Workforce RBAC console for customer search, support, employee IAM, and cross-service change audit trails in Davids Services.">
   <title>Davids | Admin Web frontend</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
@@ -20,7 +20,7 @@
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M7 12.5 20 5l13 7.5v15L20 35 7 27.5v-15Z" stroke="currentColor" stroke-width="2"/><path d="m13 21 4.2 4.2L27.5 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <span class="brand-name">davids<span class="brand-dot">.</span></span>
       </a>
-      <div class="workspace-label">ADMIN CONSOLE</div>
+      <div class="workspace-label">WORKFORCE CONSOLE</div>
       <nav class="side-nav" aria-label="Main navigation">
         <button id="nav-directory" class="nav-item active" type="button">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M3.8 19v-1.2a5.2 5.2 0 0 1 10.4 0V19H3.8Zm12-8.3a3 3 0 1 0-.1-5.9m1 9.6a4.5 4.5 0 0 1 3.5 4.4V19h-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -32,13 +32,18 @@
           <span>Administrators</span>
           <span class="nav-badge">IAM</span>
         </button>
+        <button id="nav-audits" class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 7h6m-6 4h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Change Audits</span>
+          <span class="nav-badge">LOG</span>
+        </button>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-help">
           <span class="help-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6"/></svg></span>
           <span>
             <strong>Isolated storage</strong>
-            <small>Admins in <code>adminidentitydb</code>; customers in <code>identitydb</code> &amp; <code>customersdb</code>.</small>
+            <small>Workforce in <code>adminidentitydb</code>; customers in <code>identitydb</code> &amp; <code>customersdb</code>.</small>
           </span>
         </div>
         <div class="sidebar-footnote">DAVIDS SERVICES <span>·</span> ADMIN WEB FRONTEND</div>
@@ -53,7 +58,7 @@
           <strong id="breadcrumb-title">Customer Directory</strong>
         </div>
         <div class="topbar-actions">
-          <span class="connection-chip"><span class="connection-dot"></span>AdminBearer verified</span>
+          <span id="role-access-chip" class="connection-chip"><span class="connection-dot"></span>AdminBearer verified</span>
           <button id="refresh-workspace" class="icon-button" type="button" aria-label="Refresh workspace data" title="Refresh">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -76,7 +81,7 @@
             <div>
               <p class="eyebrow">CUSTOMER ADMINISTRATION</p>
               <h1>Search &amp; edit customers</h1>
-              <p class="page-subtitle">Search customer records stored in <code>customersdb</code> across name, email, address and ID, filter by standing or tier, and edit customer profiles.</p>
+              <p class="page-subtitle">Search customer records stored in <code>customersdb</code> across name, email, address and ID, inspect CIAM lockout state, and record audited updates.</p>
             </div>
             <button id="directory-refresh" class="button button-outline" type="button">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -95,7 +100,7 @@
             <div class="directory-toolbar">
               <div class="directory-toolbar-head">
                 <h2>Customer records</h2>
-                <p class="muted-copy">Select any customer row or click Edit customer to update name, email, address or state.</p>
+                <p id="directory-mode-copy" class="muted-copy">Select any customer row or click Edit customer to update profile details, account standing, or sign-in lockout status.</p>
               </div>
               <div class="directory-filters" role="search" aria-label="Search and filter customers">
                 <label class="search-wrap" for="directory-search">
@@ -135,15 +140,15 @@
               <div id="directory-empty" class="table-empty" hidden>No customers match your current search and filters.</div>
             </div>
           </article>
-          <p class="directory-footnote">Searches and edits execute through the API Gateway (<code>GET /customers</code> &amp; <code>PUT /customers/{customerId}</code>) with OIDC <code>AdminBffCookie</code> / <code>RS256</code> <code>AdminBearer</code> enforced at both the Gateway and Customers API.</p>
+          <p class="directory-footnote">Searches and edits execute through the API Gateway (<code>GET /customers</code>, <code>PUT /customers/{customerId}</code> &amp; <code>/customer-accounts/users/{userId}</code>) with workforce RBAC (<code>admin</code>, <code>support</code>, <code>auditor</code>) enforced at both the Gateway and downstream APIs.</p>
         </section>
 
         <section id="admins-view" class="page-view" hidden>
           <div class="page-heading">
             <div>
-              <p class="eyebrow">ADMIN IDENTITY (ADMINIDENTITYDB)</p>
-              <h1>Administrator accounts</h1>
-              <p class="page-subtitle">Manage administrator logins stored in the dedicated <code>Davids.Services.AdminIdentity</code> database. Public registration is disabled; only signed-in administrators can provision new admin accounts.</p>
+              <p class="eyebrow">WORKFORCE IAM (ADMINIDENTITYDB)</p>
+              <h1>Workforce &amp; administrator accounts</h1>
+              <p class="page-subtitle">Manage employee logins (<code>admin</code>, <code>support</code>, <code>auditor</code>) in <code>Davids.Services.AdminIdentity</code> and rotate your own workforce password.</p>
             </div>
             <button id="admins-refresh" class="button button-outline" type="button">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -153,19 +158,19 @@
 
           <div class="stat-grid">
             <article class="stat-card">
-              <div class="stat-top"><span class="stat-label">SIGNED-IN ADMINISTRATOR</span><span class="stat-icon stat-icon-blue"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+              <div class="stat-top"><span class="stat-label">SIGNED-IN EMPLOYEE</span><span class="stat-icon stat-icon-blue"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
               <strong id="admin-self-email" class="stat-email">—</strong>
               <small id="admin-self-id">Verifying session…</small>
             </article>
             <article class="stat-card">
-              <div class="stat-top"><span class="stat-label">PROVISIONED ADMINS</span><span class="stat-icon stat-icon-violet"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 20v-1.5a7 7 0 0 1 14 0V20H5Z" stroke="currentColor" stroke-width="1.7"/></svg></span></div>
+              <div class="stat-top"><span class="stat-label">PROVISIONED WORKFORCE</span><span class="stat-icon stat-icon-violet"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M5 20v-1.5a7 7 0 0 1 14 0V20H5Z" stroke="currentColor" stroke-width="1.7"/></svg></span></div>
               <strong id="admins-total-count" class="stat-number">—</strong>
               <small>Accounts in <code>adminidentitydb</code></small>
             </article>
             <article class="stat-card">
               <div class="stat-top"><span class="stat-label">IDENTITY ISOLATION</span><span class="stat-icon stat-icon-amber"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.7"/></svg></span></div>
               <strong class="stat-number">Enforced</strong>
-              <small>Separate DB, Vault secret &amp; JWT key</small>
+              <small>Separate DB, Vault secret &amp; RSA key</small>
             </article>
           </div>
 
@@ -173,19 +178,20 @@
             <article class="surface-card directory-card">
               <div class="directory-toolbar">
                 <div class="directory-toolbar-head">
-                  <h2>Registered administrators</h2>
-                  <p class="muted-copy">All accounts below hold the <code>admin</code> role in <code>Davids.Services.AdminIdentity</code>.</p>
+                  <h2>Registered workforce accounts</h2>
+                  <p class="muted-copy">Roles: <code>admin</code> (full IAM + support), <code>support</code> (customer support), <code>auditor</code> (read-only compliance).</p>
                 </div>
               </div>
-              <div id="admins-loading" class="loading-panel"><span class="spinner spinner-dark"></span><span>Loading administrator accounts…</span></div>
+              <div id="admins-loading" class="loading-panel"><span class="spinner spinner-dark"></span><span>Loading workforce accounts…</span></div>
               <div id="admins-error" class="inline-message" role="alert" hidden></div>
               <div id="admins-table-wrap" class="table-wrap" hidden>
                 <table class="customer-table admin-table">
                   <thead>
                     <tr>
-                      <th>ADMINISTRATOR EMAIL</th>
-                      <th>ROLE</th>
+                      <th>EMPLOYEE EMAIL</th>
+                      <th>ROLE &amp; STATUS</th>
                       <th>CREATED</th>
+                      <th>IAM CONTROLS</th>
                     </tr>
                   </thead>
                   <tbody id="admins-table-body"></tbody>
@@ -193,23 +199,47 @@
               </div>
             </article>
 
-            <article class="surface-card complete-card">
-              <div class="form-card-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v8m-4-4h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
-              <p class="eyebrow">PROVISION ADMIN</p>
-              <h2>Add administrator</h2>
-              <p class="muted-copy">Create a new administrator account in <code>adminidentitydb</code>. Passwords must be at least 12 characters.</p>
-              <form id="create-admin-form" class="form-stack" novalidate>
-                <label class="field-label" for="new-admin-email">Email address</label>
-                <input class="text-input" id="new-admin-email" name="email" type="email" maxlength="320" autocomplete="off" placeholder="ops-admin@davids.local" required>
-                <label class="field-label" for="new-admin-password">Initial password (12+ chars)</label>
-                <input class="text-input" id="new-admin-password" name="password" type="password" minlength="12" maxlength="200" autocomplete="new-password" placeholder="At least 12 characters" required>
-                <div id="create-admin-message" class="inline-message" role="alert" hidden></div>
-                <button id="create-admin-submit" class="button button-primary button-wide" type="submit">
-                  Provision administrator
-                  <svg class="button-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </form>
-            </article>
+            <div class="workforce-side-stack">
+              <article id="provision-admin-card" class="surface-card complete-card">
+                <div class="form-card-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v8m-4-4h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+                <p class="eyebrow">PROVISION WORKFORCE</p>
+                <h2>Add employee account</h2>
+                <p class="muted-copy">Provision a workforce account in <code>adminidentitydb</code>. Requires the <code>admin</code> role.</p>
+                <form id="create-admin-form" class="form-stack" novalidate>
+                  <label class="field-label" for="new-admin-email">Email address</label>
+                  <input class="text-input" id="new-admin-email" name="email" type="email" maxlength="320" autocomplete="off" placeholder="support-agent@davids.local" required>
+                  <label class="field-label" for="new-admin-full-name">Full name (optional)</label>
+                  <input class="text-input" id="new-admin-full-name" name="fullName" type="text" maxlength="200" autocomplete="off" placeholder="Jordan Reid">
+                  <label class="field-label" for="new-admin-role">Workforce role</label>
+                  <select class="text-input select-input" id="new-admin-role" name="role">
+                    <option value="admin">admin — Full IAM &amp; customer administration</option>
+                    <option value="support">support — Customer support &amp; account unlock</option>
+                    <option value="auditor">auditor — Read-only directory &amp; audit logs</option>
+                  </select>
+                  <label class="field-label" for="new-admin-password">Initial password (12+ chars)</label>
+                  <input class="text-input" id="new-admin-password" name="password" type="password" minlength="12" maxlength="200" autocomplete="new-password" placeholder="At least 12 characters" required>
+                  <div id="create-admin-message" class="inline-message" role="alert" hidden></div>
+                  <button id="create-admin-submit" class="button button-primary button-wide" type="submit">
+                    Provision employee
+                    <svg class="button-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </form>
+              </article>
+
+              <article class="surface-card complete-card">
+                <p class="eyebrow">SELF-SERVICE CREDENTIALS</p>
+                <h2>Change my password</h2>
+                <p class="muted-copy">Rotates your password in <code>adminidentitydb</code> and revokes existing refresh/access grants, requiring immediate re-sign-in.</p>
+                <form id="self-password-form" class="form-stack" novalidate>
+                  <label class="field-label" for="self-current-password">Current password</label>
+                  <input class="text-input" id="self-current-password" name="currentPassword" type="password" minlength="12" maxlength="200" autocomplete="current-password" required>
+                  <label class="field-label" for="self-new-password">New password (12+ chars)</label>
+                  <input class="text-input" id="self-new-password" name="newPassword" type="password" minlength="12" maxlength="200" autocomplete="new-password" required>
+                  <div id="self-password-message" class="inline-message" role="alert" hidden></div>
+                  <button id="self-password-submit" class="button button-outline button-wide" type="submit">Rotate my password</button>
+                </form>
+              </article>
+            </div>
           </div>
 
           <article class="surface-card directory-card audit-log-card">
@@ -244,6 +274,58 @@
             </div>
           </article>
         </section>
+
+        <section id="audits-view" class="page-view" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">CROSS-AUTHORITY GOVERNANCE</p>
+              <h1>Unified Change Audit Trail</h1>
+              <p class="page-subtitle">Immutable field-level mutation logs aggregated across <code>customersdb</code>, customer CIAM (<code>identitydb</code>), and workforce IAM (<code>adminidentitydb</code>) with zero secrets stored.</p>
+            </div>
+            <button id="audits-refresh" class="button button-outline" type="button">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9a7 7 0 0 1 11.9-2L20 12M4 12l2.6 5a7 7 0 0 0 11.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <article class="surface-card directory-card">
+            <div class="directory-toolbar">
+              <div class="directory-toolbar-head">
+                <h2>Recorded mutations (<span id="change-audits-count">0</span>)</h2>
+                <p class="muted-copy">Inspect who changed which fields, from which authority (<code>employee</code>, <code>customer</code>, or <code>identity-sync</code>), and trace by correlation ID.</p>
+              </div>
+              <div class="directory-filters">
+                <label class="search-wrap" for="change-audits-search">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                  <input id="change-audits-search" type="search" placeholder="Filter by target, actor, action or field" aria-label="Filter change audit entries">
+                </label>
+                <select id="change-audits-source-filter" class="filter-select" aria-label="Filter by audit source">
+                  <option value="all">All audit stores</option>
+                  <option value="customers">Customer profiles (customersdb)</option>
+                  <option value="customer-accounts">Customer logins (identitydb)</option>
+                  <option value="admin-identity">Workforce IAM (adminidentitydb)</option>
+                </select>
+              </div>
+            </div>
+            <div id="change-audits-loading" class="loading-panel" hidden><span class="spinner spinner-dark"></span><span>Loading change audit timelines…</span></div>
+            <div id="change-audits-error" class="inline-message" role="alert" hidden></div>
+            <div class="table-wrap">
+              <table class="customer-table audit-table">
+                <thead>
+                  <tr>
+                    <th>TIMESTAMP (UTC)</th>
+                    <th>SOURCE</th>
+                    <th>ACTION &amp; TARGET</th>
+                    <th>ACTOR</th>
+                    <th>FIELD DIFFS</th>
+                    <th>CORRELATION</th>
+                  </tr>
+                </thead>
+                <tbody id="change-audits-tbody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
       </div>
       <footer class="main-footer"><span>DAVIDS SERVICES</span><span>Admin Web frontend (Davids.Frontend.Admin) <b>·</b> <span id="footer-year"></span></span></footer>
     </main>
@@ -273,11 +355,25 @@
 
         <div id="modal-orders-section" class="modal-orders" hidden><small>COMPLETED ORDER IDS</small><div id="modal-orders-list" class="order-list"></div></div>
 
+        <div id="modal-account-support" class="modal-support-box" hidden>
+          <div class="modal-support-head">
+            <div>
+              <p class="eyebrow">CUSTOMER LOGIN SUPPORT (CIAM)</p>
+              <strong id="modal-ciam-status">Checking sign-in status…</strong>
+            </div>
+            <button id="modal-unlock-login" class="button button-outline" type="button" hidden>Unlock sign-in</button>
+          </div>
+          <div id="modal-ciam-email-row" class="state-edit-controls">
+            <input class="text-input" id="modal-ciam-email-input" type="email" maxlength="320" placeholder="Update sign-in email (syncs to profile)">
+            <button id="modal-save-ciam-email" class="button button-outline" type="button">Update sign-in email</button>
+          </div>
+        </div>
+
         <form id="modal-edit-form" class="modal-section customer-edit-form" novalidate>
           <div>
             <p class="eyebrow">EDIT CUSTOMER</p>
             <h3>Profile details &amp; account state</h3>
-            <p class="muted-copy">Update the customer’s full name, email address, delivery address and standing.</p>
+            <p class="muted-copy">Update the customer’s full name, delivery address and standing.</p>
           </div>
 
           <div class="edit-grid">
@@ -286,7 +382,7 @@
               <input class="text-input" id="modal-name-input" name="fullName" type="text" maxlength="200" placeholder="Customer full name" required>
             </div>
             <div>
-              <label class="field-label" for="modal-email-input">Email address</label>
+              <label class="field-label" for="modal-email-input">Profile email</label>
               <input class="text-input" id="modal-email-input" name="email" type="email" maxlength="320" placeholder="customer@example.com" required>
             </div>
             <div class="edit-wide">
@@ -314,8 +410,13 @@
             <button id="modal-edit-submit" class="button button-primary" type="submit">Save customer changes</button>
           </div>
         </form>
+
+        <div id="modal-customer-audits-section" class="modal-customer-audits" hidden>
+          <p class="eyebrow">RECENT CUSTOMER MUTATIONS</p>
+          <div id="modal-customer-audits-list" class="modal-audit-list"></div>
+        </div>
       </div>
-      <div class="modal-footer"><span class="lock-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Protected by API Gateway &amp; Customers API</span><button id="modal-done" class="button button-quiet" type="button">Close</button></div>
+      <div class="modal-footer"><span class="lock-note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7.5a4 4 0 1 1 8 0V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Protected by API Gateway &amp; Workforce RBAC</span><button id="modal-done" class="button button-quiet" type="button">Close</button></div>
     </section>
   </div>
 </body>

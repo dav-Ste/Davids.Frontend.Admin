@@ -25,10 +25,9 @@
 
 ## Capabilities
 
-- **Administrator OIDC Single Sign-On (`/login` -> `/auth/login` -> `/signin-oidc`)**: Initiates the Gateway BFF PKCE `S256` login flow and terminates sessions cleanly via `POST /auth/logout` (which triggers RFC 7009 server-side token revocation).
-- **Administrator customer directory (`GET /customers?search=&state=&vip=`)**: Server-side search across customer full name, email, address, and customer GUID, plus lifecycle state and VIP filters.
-- **Administrator customer editing (`PUT /customers/{customerId}` & `PUT /customers/{customerId}/state/{state}`)**: Edit modal loaded from `GET /customers/{customerId}` (`CustomerDetailsDto`) with full customer profile and lifecycle state updates.
-- **Administrator account & login-audit management (`GET/POST /admin-identity/users` & `GET /admin-identity/login-audits`)**: Lists and provisions administrator accounts in `adminidentitydb` and inspects append-only administrator login audit events.
+- **Workforce OIDC Single Sign-On (`/login` -> `/auth/login` -> `/signin-oidc`)**: Initiates the Gateway BFF PKCE `S256` login flow for workforce roles (`admin`, `support`, `auditor`), supports self-service employee password rotation (`PUT /admin-identity/me/password`), and terminates sessions cleanly via `POST /auth/logout` (RFC 7009 revocation).
+- **Customer directory & CIAM support (`GET /customers`, `PUT /customers/{customerId}`, `/customer-accounts/users/{userId}`)**: Role-aware customer search, profile/state editing (`admin` and `support`; read-only for `auditor`), customer lockout unlock (`POST /customer-accounts/users/{userId}/unlock`), and verified customer email recovery (`PUT /customer-accounts/users/{userId}/email`).
+- **Workforce IAM & unified audit trails (`GET/POST/PUT /admin-identity/users`, `/audits`)**: `admin`-only workforce account creation, role assignment (`admin`/`support`/`auditor` with last-admin protection), deactivation, and unlock, plus unified Workforce IAM, Customer Profile, Customer CIAM, and Login Audit views for `admin`, `support`, and `auditor`.
 
 See [`docs/ADMIN-WEB-FRONTEND.md`](docs/ADMIN-WEB-FRONTEND.md) for endpoint contracts and OIDC BFF security details.
 
@@ -56,3 +55,4 @@ docker build -f Davids.Frontend.Admin/Dockerfile -t davids-frontend-admin:local 
 - [`Davids.Services.Identity`](https://github.com/dav-Ste/Davids.Services.Identity) — Customer OpenIddict `RS256` OIDC Provider (`identitydb`)
 - [`Davids.Services.AdminIdentity`](https://github.com/dav-Ste/Davids.Services.AdminIdentity) — Administrator OpenIddict `RS256` OIDC Provider (`adminidentitydb`)
 - [`Davids.Services.Customers`](https://github.com/dav-Ste/Davids.Services.Customers) — Customer profiles & order tracking API (`customersdb`)
+- [`Davids.Frontend.Web`](https://github.com/dav-Ste/Davids.Frontend.Web) — Customer Self-Service Web Portal (`CustomerBffCookie` PKCE `S256` BFF)

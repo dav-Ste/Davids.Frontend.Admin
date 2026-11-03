@@ -3,6 +3,7 @@
 
   const CSRF_HEADER_NAME = "X-Requested-With";
   const CSRF_HEADER_VALUE = "DavidsAdmin";
+  const WORKFORCE_ROLES = new Set(["admin", "support", "auditor"]);
 
   const state = {
     adminId: null,
@@ -12,8 +13,12 @@
     directory: [],
     admins: [],
     adminAudits: [],
+    changeAudits: [],
     adminAuditOutcomeFilter: "all",
+    changeAuditSourceFilter: "all",
+    changeAuditSearch: "",
     selectedCustomer: null,
+    selectedCustomerCiam: null,
     directorySearchTimer: null,
     directoryRequestId: 0,
     toastTimer: null
@@ -25,7 +30,9 @@
     workspace: el("workspace"),
     navDirectory: el("nav-directory"),
     navAdmins: el("nav-admins"),
+    navAudits: el("nav-audits"),
     breadcrumbTitle: el("breadcrumb-title"),
+    roleAccessChip: el("role-access-chip"),
     refreshWorkspace: el("refresh-workspace"),
     userAvatar: el("user-avatar"),
     userName: el("user-name"),
@@ -36,6 +43,7 @@
 
     directoryView: el("directory-view"),
     directoryRefresh: el("directory-refresh"),
+    directoryModeCopy: el("directory-mode-copy"),
     directoryTotal: el("directory-total"),
     directoryValidCount: el("directory-valid-count"),
     directoryAttentionCount: el("directory-attention-count"),
@@ -59,14 +67,31 @@
     adminsError: el("admins-error"),
     adminsTableWrap: el("admins-table-wrap"),
     adminsTableBody: el("admins-table-body"),
+    provisionAdminCard: el("provision-admin-card"),
     createAdminForm: el("create-admin-form"),
     newAdminEmail: el("new-admin-email"),
+    newAdminFullName: el("new-admin-full-name"),
+    newAdminRole: el("new-admin-role"),
     newAdminPassword: el("new-admin-password"),
     createAdminMessage: el("create-admin-message"),
     createAdminSubmit: el("create-admin-submit"),
+    selfPasswordForm: el("self-password-form"),
+    selfCurrentPassword: el("self-current-password"),
+    selfNewPassword: el("self-new-password"),
+    selfPasswordMessage: el("self-password-message"),
+    selfPasswordSubmit: el("self-password-submit"),
     adminAuditCount: el("admin-audit-count"),
     adminAuditOutcomeFilter: el("admin-audit-outcome-filter"),
     adminAuditsTableBody: el("admin-audits-tbody"),
+
+    auditsView: el("audits-view"),
+    auditsRefresh: el("audits-refresh"),
+    changeAuditsCount: el("change-audits-count"),
+    changeAuditsSearch: el("change-audits-search"),
+    changeAuditsSourceFilter: el("change-audits-source-filter"),
+    changeAuditsLoading: el("change-audits-loading"),
+    changeAuditsError: el("change-audits-error"),
+    changeAuditsTableBody: el("change-audits-tbody"),
 
     customerModal: el("customer-modal"),
     modalBackdrop: el("modal-backdrop"),
@@ -82,6 +107,12 @@
     modalOrdersCount: el("modal-orders-count"),
     modalOrdersSection: el("modal-orders-section"),
     modalOrdersList: el("modal-orders-list"),
+    modalAccountSupport: el("modal-account-support"),
+    modalCiamStatus: el("modal-ciam-status"),
+    modalUnlockLogin: el("modal-unlock-login"),
+    modalCiamEmailRow: el("modal-ciam-email-row"),
+    modalCiamEmailInput: el("modal-ciam-email-input"),
+    modalSaveCiamEmail: el("modal-save-ciam-email"),
     modalEditForm: el("modal-edit-form"),
     modalNameInput: el("modal-name-input"),
     modalEmailInput: el("modal-email-input"),
@@ -91,8 +122,18 @@
     modalMessage: el("modal-message"),
     modalResetEdit: el("modal-reset-edit"),
     modalEditSubmit: el("modal-edit-submit"),
+    modalCustomerAuditsSection: el("modal-customer-audits-section"),
+    modalCustomerAuditsList: el("modal-customer-audits-list"),
     modalDone: el("modal-done")
   };
+
+  function canMutateCustomers() {
+    return state.role === "admin" || state.role === "support";
+  }
+
+  function isIamAdmin() {
+    return state.role === "admin";
+  }
 
   function showMessage(node, text, kind = "error") {
     if (!node) {
@@ -137,16 +178,22 @@
     const reason = payload?.reason || payload?.Reason || payload?.detail || payload?.title || "";
 
     if (code === "email_in_use") {
-      return "An administrator account with that email address already exists.";
+      return reason || "An account with that email address already exists.";
     }
     if (code === "customer_email_in_use" || status === 409) {
       return reason || "Another customer record already uses that email address.";
+    }
+    if (code === "last_active_admin") {
+      return reason || "At least one active administrator account must remain enabled.";
+    }
+    if (code === "invalid_credentials") {
+      return reason || "Current password was incorrect.";
     }
     if (code === "invalid_customer_email" || code === "invalid_email") {
       return reason || "Please enter a valid email address.";
     }
     if (code === "invalid_password") {
-      return reason || "Password must be at least 12 characters.";
+      return reason || "Password must be at least 12 characters and distinct from your current password.";
     }
     if (code === "invalid_customer_full_name") {
       return reason || "Full name is required (up to 200 characters).";
@@ -158,10 +205,10 @@
       return reason || "That customer state change is not allowed.";
     }
     if (status === 401) {
-      return "Your administrator session expired. Please sign in again.";
+      return "Your workforce session expired. Please sign in again.";
     }
     if (status === 403) {
-      return "Administrator permissions are required for this action.";
+      return reason || "Your workforce role is not permitted to perform this action.";
     }
     if (reason) {
       return reason;
@@ -179,7 +226,6 @@
       headers.set("Content-Type", "application/json");
     }
 
-    // Davids.APIGateway automatically refreshes near-expiry OIDC tokens inside the encrypted HttpOnly BFF cookie.
     const response = await fetch(path, {
       method: options.method || "GET",
       credentials: "same-origin",
@@ -201,30 +247,51 @@
   }
 
   function updateIdentityHeader() {
-    const label = state.email || "Administrator";
+    const label = state.email || "Employee";
+    const roleLabel = state.role || "admin";
     dom.userName.textContent = label;
-    dom.userRole.textContent = "Administrator";
+    dom.userRole.textContent = roleLabel;
     dom.userAvatar.textContent = label.trim().charAt(0).toUpperCase() || "A";
 
     if (dom.adminSelfEmail) {
       dom.adminSelfEmail.textContent = label;
     }
     if (dom.adminSelfId) {
-      dom.adminSelfId.textContent = state.adminId ? `ID ${state.adminId}` : "Verified AdminBearer session";
+      dom.adminSelfId.textContent = state.adminId
+        ? `Role: ${roleLabel} · ID ${state.adminId}`
+        : `Verified ${roleLabel} session`;
+    }
+    if (dom.provisionAdminCard) {
+      dom.provisionAdminCard.hidden = !isIamAdmin();
+    }
+    if (dom.directoryModeCopy) {
+      dom.directoryModeCopy.textContent = canMutateCustomers()
+        ? "Select any customer row or click Edit customer to update profile details, account standing, or sign-in lockout status."
+        : "Signed in with read-only auditor permissions. Select any customer row to inspect profile details, CIAM standing, and mutation history.";
     }
   }
 
   function switchView(view) {
-    const target = view === "admins" ? "admins" : "directory";
+    const target = view === "admins" || view === "audits" ? view : "directory";
     state.activeView = target;
 
-    const showingDirectory = target === "directory";
-    dom.directoryView.hidden = !showingDirectory;
-    dom.adminsView.hidden = showingDirectory;
+    dom.directoryView.hidden = target !== "directory";
+    dom.adminsView.hidden = target !== "admins";
+    if (dom.auditsView) {
+      dom.auditsView.hidden = target !== "audits";
+    }
 
-    dom.navDirectory.classList.toggle("active", showingDirectory);
-    dom.navAdmins.classList.toggle("active", !showingDirectory);
-    dom.breadcrumbTitle.textContent = showingDirectory ? "Customer Directory" : "Administrator Accounts";
+    dom.navDirectory.classList.toggle("active", target === "directory");
+    dom.navAdmins.classList.toggle("active", target === "admins");
+    if (dom.navAudits) {
+      dom.navAudits.classList.toggle("active", target === "audits");
+    }
+
+    dom.breadcrumbTitle.textContent = target === "admins"
+      ? "Workforce IAM"
+      : target === "audits"
+        ? "Unified Change Audit Trail"
+        : "Customer Directory";
   }
 
   function formatDateTime(value) {
@@ -421,7 +488,7 @@
       const editBtn = document.createElement("button");
       editBtn.type = "button";
       editBtn.className = "table-action";
-      editBtn.textContent = "Edit customer";
+      editBtn.textContent = canMutateCustomers() ? "Edit customer" : "Inspect record";
       editBtn.addEventListener("click", () => openCustomerModal(id));
       actionTd.appendChild(editBtn);
       tr.appendChild(actionTd);
@@ -449,7 +516,7 @@
         return;
       }
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         redirectToLogin("expired");
         return;
       }
@@ -499,6 +566,45 @@
     loadDirectory();
   }
 
+  async function updateWorkforceAccount(userId, patch) {
+    const response = await apiRequest(`/admin-identity/users/${encodeURIComponent(userId)}`, {
+      method: "PUT",
+      body: patch
+    });
+
+    if (response.status === 401) {
+      redirectToLogin("expired");
+      return;
+    }
+
+    if (!response.ok) {
+      showMessage(dom.adminsError, friendlyApiError(response.status, response.data, "Could not update employee account."));
+      return;
+    }
+
+    showToast("Workforce account updated.");
+    await loadAdmins();
+  }
+
+  async function unlockWorkforceAccount(userId) {
+    const response = await apiRequest(`/admin-identity/users/${encodeURIComponent(userId)}/unlock`, {
+      method: "POST"
+    });
+
+    if (response.status === 401) {
+      redirectToLogin("expired");
+      return;
+    }
+
+    if (!response.ok) {
+      showMessage(dom.adminsError, friendlyApiError(response.status, response.data, "Could not unlock employee account."));
+      return;
+    }
+
+    showToast("Workforce account unlocked.");
+    await loadAdmins();
+  }
+
   function renderAdminRows(admins) {
     dom.adminsTableBody.replaceChildren();
     const items = Array.isArray(admins) ? admins : [];
@@ -507,7 +613,11 @@
     for (const item of items) {
       const id = String(item.id || item.Id || "");
       const email = String(item.email || item.Email || "");
+      const fullName = String(item.fullName || item.FullName || "").trim();
       const role = String(item.role || item.Role || "admin");
+      const isActive = Boolean(item.isActive ?? item.IsActive ?? true);
+      const lockedOutUntil = item.lockedOutUntilUtc || item.LockedOutUntilUtc || null;
+      const isLockedOut = Boolean(lockedOutUntil && new Date(lockedOutUntil).getTime() > Date.now());
       const createdAt = item.createdAt || item.CreatedAt;
 
       const tr = document.createElement("tr");
@@ -516,7 +626,7 @@
       const wrap = document.createElement("div");
       wrap.className = "customer-primary-cell";
       const strong = document.createElement("strong");
-      strong.textContent = email;
+      strong.textContent = fullName ? `${fullName} (${email})` : email;
       wrap.appendChild(strong);
       const idMeta = document.createElement("span");
       idMeta.className = "customer-id-meta";
@@ -526,15 +636,64 @@
       tr.appendChild(emailTd);
 
       const roleTd = document.createElement("td");
+      const stack = document.createElement("div");
+      stack.className = "status-stack";
       const pill = document.createElement("span");
-      pill.className = "state-pill state-valid";
-      pill.textContent = role;
-      roleTd.appendChild(pill);
+      pill.className = isActive ? "state-pill state-valid" : "state-pill state-locked";
+      pill.textContent = isActive ? role : `${role} (disabled)`;
+      stack.appendChild(pill);
+      if (isLockedOut) {
+        const lockPill = document.createElement("span");
+        lockPill.className = "state-pill state-suspicious";
+        lockPill.textContent = "locked out";
+        stack.appendChild(lockPill);
+      }
+      roleTd.appendChild(stack);
       tr.appendChild(roleTd);
 
       const createdTd = document.createElement("td");
       createdTd.textContent = formatDateTime(createdAt);
       tr.appendChild(createdTd);
+
+      const controlsTd = document.createElement("td");
+      if (isIamAdmin()) {
+        const actionWrap = document.createElement("div");
+        actionWrap.className = "inline-iam-controls";
+
+        const roleSelect = document.createElement("select");
+        roleSelect.className = "filter-select";
+        roleSelect.setAttribute("aria-label", `Change role for ${email}`);
+        for (const r of ["admin", "support", "auditor"]) {
+          const opt = document.createElement("option");
+          opt.value = r;
+          opt.textContent = r;
+          opt.selected = r === role;
+          roleSelect.appendChild(opt);
+        }
+        roleSelect.addEventListener("change", () => updateWorkforceAccount(id, { role: roleSelect.value }));
+        actionWrap.appendChild(roleSelect);
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.type = "button";
+        toggleBtn.className = "table-action";
+        toggleBtn.textContent = isActive ? "Disable" : "Enable";
+        toggleBtn.addEventListener("click", () => updateWorkforceAccount(id, { isActive: !isActive }));
+        actionWrap.appendChild(toggleBtn);
+
+        if (isLockedOut) {
+          const unlockBtn = document.createElement("button");
+          unlockBtn.type = "button";
+          unlockBtn.className = "table-action";
+          unlockBtn.textContent = "Unlock";
+          unlockBtn.addEventListener("click", () => unlockWorkforceAccount(id));
+          actionWrap.appendChild(unlockBtn);
+        }
+
+        controlsTd.appendChild(actionWrap);
+      } else {
+        controlsTd.textContent = "Read-only";
+      }
+      tr.appendChild(controlsTd);
 
       dom.adminsTableBody.appendChild(tr);
     }
@@ -644,7 +803,7 @@
         apiRequest("/admin-identity/users"),
         apiRequest("/admin-identity/login-audits?limit=50")
       ]);
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         redirectToLogin("expired");
         return;
       }
@@ -652,7 +811,7 @@
       if (!response.ok) {
         showMessage(
           dom.adminsError,
-          friendlyApiError(response.status, response.data, "Could not load administrator accounts.")
+          friendlyApiError(response.status, response.data, "Could not load workforce accounts.")
         );
         return;
       }
@@ -663,7 +822,7 @@
       renderAdminAuditRows();
       dom.adminsTableWrap.hidden = false;
     } catch {
-      showMessage(dom.adminsError, "Network error while loading administrator accounts.");
+      showMessage(dom.adminsError, "Network error while loading workforce accounts.");
     } finally {
       dom.adminsLoading.hidden = true;
     }
@@ -671,15 +830,22 @@
 
   async function handleCreateAdmin(event) {
     event.preventDefault();
+    if (!isIamAdmin()) {
+      showMessage(dom.createAdminMessage, "Only administrators can provision workforce accounts.");
+      return;
+    }
+
     const email = dom.newAdminEmail.value.trim();
+    const fullName = dom.newAdminFullName ? dom.newAdminFullName.value.trim() : "";
+    const role = dom.newAdminRole ? dom.newAdminRole.value : "admin";
     const password = dom.newAdminPassword.value;
 
     if (!email || !email.includes("@")) {
-      showMessage(dom.createAdminMessage, "Please enter a valid administrator email address.");
+      showMessage(dom.createAdminMessage, "Please enter a valid employee email address.");
       return;
     }
     if (!password || password.length < 12) {
-      showMessage(dom.createAdminMessage, "Administrator password must be at least 12 characters.");
+      showMessage(dom.createAdminMessage, "Workforce password must be at least 12 characters.");
       return;
     }
 
@@ -689,10 +855,10 @@
     try {
       const response = await apiRequest("/admin-identity/users", {
         method: "POST",
-        body: { email, password }
+        body: { email, password, role, fullName: fullName || null }
       });
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         redirectToLogin("expired");
         return;
       }
@@ -700,20 +866,246 @@
       if (!response.ok) {
         showMessage(
           dom.createAdminMessage,
-          friendlyApiError(response.status, response.data, "Could not provision administrator account.")
+          friendlyApiError(response.status, response.data, "Could not provision employee account.")
         );
         return;
       }
 
       dom.newAdminEmail.value = "";
+      if (dom.newAdminFullName) {
+        dom.newAdminFullName.value = "";
+      }
       dom.newAdminPassword.value = "";
-      showMessage(dom.createAdminMessage, "Administrator account provisioned.", "success");
-      showToast("Administrator provisioned in adminidentitydb.");
+      showMessage(dom.createAdminMessage, `Provisioned ${role} account.`, "success");
+      showToast("Workforce account provisioned in adminidentitydb.");
       await loadAdmins();
     } catch {
-      showMessage(dom.createAdminMessage, "Network error while provisioning administrator account.");
+      showMessage(dom.createAdminMessage, "Network error while provisioning employee account.");
     } finally {
       dom.createAdminSubmit.disabled = false;
+    }
+  }
+
+  async function handleSelfPasswordChange(event) {
+    event.preventDefault();
+    const currentPassword = dom.selfCurrentPassword.value;
+    const newPassword = dom.selfNewPassword.value;
+
+    if (!currentPassword || !newPassword || newPassword.length < 12) {
+      showMessage(dom.selfPasswordMessage, "Enter your current password and a new password of at least 12 characters.");
+      return;
+    }
+
+    dom.selfPasswordSubmit.disabled = true;
+    showMessage(dom.selfPasswordMessage, "");
+
+    try {
+      const response = await apiRequest("/admin-identity/me/password", {
+        method: "PUT",
+        body: { currentPassword, newPassword }
+      });
+
+      if (!response.ok) {
+        showMessage(
+          dom.selfPasswordMessage,
+          friendlyApiError(response.status, response.data, "Could not rotate password.")
+        );
+        return;
+      }
+
+      dom.selfCurrentPassword.value = "";
+      dom.selfNewPassword.value = "";
+      showMessage(dom.selfPasswordMessage, "Password rotated and prior tokens revoked. Redirecting to sign in…", "success");
+      window.setTimeout(() => handleSignOut(), 900);
+    } catch {
+      showMessage(dom.selfPasswordMessage, "Network error while rotating password.");
+    } finally {
+      dom.selfPasswordSubmit.disabled = false;
+    }
+  }
+
+  function normalizeChangeEntry(source, raw) {
+    const targetId = String(raw.targetUserId || raw.targetCustomerId || raw.TargetUserId || raw.TargetCustomerId || "");
+    const targetEmail = String(raw.targetEmail || raw.TargetEmail || "");
+    const action = String(raw.action || raw.Action || "");
+    const actorSub = String(raw.actorSub || raw.ActorSub || "");
+    const actorEmail = String(raw.actorEmail || raw.ActorEmail || "");
+    const actorRole = String(raw.actorRole || raw.ActorRole || "");
+    const actorAuthority = String(raw.actorAuthority || raw.ActorAuthority || "");
+    const occurredAtUtc = raw.occurredAtUtc || raw.OccurredAtUtc || null;
+    const correlationId = String(raw.correlationId || raw.CorrelationId || "");
+    const changes = Array.isArray(raw.changes || raw.Changes) ? (raw.changes || raw.Changes) : [];
+    return {
+      source,
+      targetId,
+      targetEmail,
+      action,
+      actorSub,
+      actorEmail,
+      actorRole,
+      actorAuthority,
+      occurredAtUtc,
+      correlationId,
+      changes
+    };
+  }
+
+  function renderChangeAudits() {
+    if (!dom.changeAuditsTableBody) {
+      return;
+    }
+
+    dom.changeAuditsTableBody.replaceChildren();
+    const term = state.changeAuditSearch.trim().toLowerCase();
+    const filtered = state.changeAudits.filter(entry => {
+      if (state.changeAuditSourceFilter !== "all" && entry.source !== state.changeAuditSourceFilter) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      const diffText = entry.changes
+        .map(c => `${c.field || c.Field || ""}:${c.oldValue ?? c.OldValue ?? ""}->${c.newValue ?? c.NewValue ?? ""}`)
+        .join(" ")
+        .toLowerCase();
+      return (
+        entry.targetEmail.toLowerCase().includes(term) ||
+        entry.targetId.toLowerCase().includes(term) ||
+        entry.action.toLowerCase().includes(term) ||
+        entry.actorSub.toLowerCase().includes(term) ||
+        entry.actorEmail.toLowerCase().includes(term) ||
+        entry.actorAuthority.toLowerCase().includes(term) ||
+        diffText.includes(term)
+      );
+    });
+
+    if (dom.changeAuditsCount) {
+      dom.changeAuditsCount.textContent = String(filtered.length);
+    }
+
+    if (!filtered.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.className = "table-empty";
+      td.textContent = "No change audit entries match the current filters.";
+      tr.appendChild(td);
+      dom.changeAuditsTableBody.appendChild(tr);
+      return;
+    }
+
+    for (const entry of filtered) {
+      const tr = document.createElement("tr");
+
+      const timeTd = document.createElement("td");
+      timeTd.textContent = formatDateTime(entry.occurredAtUtc);
+      tr.appendChild(timeTd);
+
+      const srcTd = document.createElement("td");
+      const srcPill = document.createElement("span");
+      srcPill.className = "state-pill state-valid";
+      srcPill.textContent = entry.source;
+      srcTd.appendChild(srcPill);
+      tr.appendChild(srcTd);
+
+      const targetTd = document.createElement("td");
+      const targetStack = document.createElement("div");
+      targetStack.className = "customer-primary-cell";
+      const actStrong = document.createElement("strong");
+      actStrong.textContent = entry.action.replace(/_/g, " ");
+      targetStack.appendChild(actStrong);
+      const emailSpan = document.createElement("span");
+      emailSpan.className = "customer-email-sub";
+      emailSpan.textContent = entry.targetEmail || entry.targetId;
+      targetStack.appendChild(emailSpan);
+      targetTd.appendChild(targetStack);
+      tr.appendChild(targetTd);
+
+      const actorTd = document.createElement("td");
+      const actorStack = document.createElement("div");
+      actorStack.className = "customer-primary-cell";
+      const authLine = document.createElement("strong");
+      authLine.textContent = `${entry.actorAuthority} (${entry.actorRole})`;
+      actorStack.appendChild(authLine);
+      const subSpan = document.createElement("span");
+      subSpan.className = "customer-id-meta";
+      subSpan.textContent = entry.actorEmail || entry.actorSub;
+      actorStack.appendChild(subSpan);
+      actorTd.appendChild(actorStack);
+      tr.appendChild(actorTd);
+
+      const diffTd = document.createElement("td");
+      const diffWrap = document.createElement("div");
+      diffWrap.className = "diff-chip-list";
+      for (const ch of entry.changes) {
+        const chip = document.createElement("code");
+        chip.className = "diff-chip";
+        const f = ch.field || ch.Field || "field";
+        const oldVal = ch.oldValue ?? ch.OldValue ?? "∅";
+        const newVal = ch.newValue ?? ch.NewValue ?? "∅";
+        chip.textContent = `${f}: ${oldVal} → ${newVal}`;
+        diffWrap.appendChild(chip);
+      }
+      diffTd.appendChild(diffWrap);
+      tr.appendChild(diffTd);
+
+      const corrTd = document.createElement("td");
+      const corrCode = document.createElement("code");
+      corrCode.textContent = entry.correlationId ? entry.correlationId.slice(0, 16) : "—";
+      if (entry.correlationId) {
+        corrCode.title = entry.correlationId;
+      }
+      corrTd.appendChild(corrCode);
+      tr.appendChild(corrTd);
+
+      dom.changeAuditsTableBody.appendChild(tr);
+    }
+  }
+
+  async function loadChangeAudits() {
+    if (!dom.changeAuditsLoading) {
+      return;
+    }
+
+    showMessage(dom.changeAuditsError, "");
+    dom.changeAuditsLoading.hidden = false;
+
+    try {
+      const [custResp, ciamResp, iamResp] = await Promise.all([
+        apiRequest("/customers/change-audits?limit=100"),
+        apiRequest("/customer-accounts/change-audits?limit=100"),
+        apiRequest("/admin-identity/change-audits?limit=100")
+      ]);
+
+      if (custResp.status === 401 || ciamResp.status === 401 || iamResp.status === 401) {
+        redirectToLogin("expired");
+        return;
+      }
+
+      const combined = [];
+      if (custResp.ok && Array.isArray(custResp.data)) {
+        for (const item of custResp.data) {
+          combined.push(normalizeChangeEntry("customers", item));
+        }
+      }
+      if (ciamResp.ok && Array.isArray(ciamResp.data)) {
+        for (const item of ciamResp.data) {
+          combined.push(normalizeChangeEntry("customer-accounts", item));
+        }
+      }
+      if (iamResp.ok && Array.isArray(iamResp.data)) {
+        for (const item of iamResp.data) {
+          combined.push(normalizeChangeEntry("admin-identity", item));
+        }
+      }
+
+      combined.sort((a, b) => new Date(b.occurredAtUtc || 0).getTime() - new Date(a.occurredAtUtc || 0).getTime());
+      state.changeAudits = combined;
+      renderChangeAudits();
+    } catch {
+      showMessage(dom.changeAuditsError, "Network error while loading cross-service change audit trails.");
+    } finally {
+      dom.changeAuditsLoading.hidden = true;
     }
   }
 
@@ -754,6 +1146,58 @@
     };
   }
 
+  function populateModalCiamSupport(ciamData) {
+    if (!dom.modalAccountSupport) {
+      return;
+    }
+
+    if (!ciamData || typeof ciamData !== "object") {
+      dom.modalAccountSupport.hidden = true;
+      return;
+    }
+
+    state.selectedCustomerCiam = ciamData;
+    dom.modalAccountSupport.hidden = false;
+
+    const email = String(ciamData.email || ciamData.Email || "");
+    const failedCount = Number(ciamData.failedLoginCount ?? ciamData.FailedLoginCount ?? 0);
+    const lockedUntil = ciamData.lockedOutUntilUtc || ciamData.LockedOutUntilUtc || null;
+    const isLocked = Boolean(lockedUntil && new Date(lockedUntil).getTime() > Date.now());
+
+    dom.modalCiamStatus.textContent = isLocked
+      ? `Sign-in LOCKED until ${formatDateTime(lockedUntil)} (${failedCount} failed attempts)`
+      : `Sign-in active (${email}) · ${failedCount} failed attempts`;
+
+    dom.modalUnlockLogin.hidden = !(canMutateCustomers() && (isLocked || failedCount > 0));
+    dom.modalCiamEmailRow.hidden = !canMutateCustomers();
+    dom.modalCiamEmailInput.value = email;
+  }
+
+  function renderModalCustomerAudits(entries) {
+    if (!dom.modalCustomerAuditsSection || !dom.modalCustomerAuditsList) {
+      return;
+    }
+
+    dom.modalCustomerAuditsList.replaceChildren();
+    const items = Array.isArray(entries) ? entries.slice(0, 8) : [];
+    if (!items.length) {
+      dom.modalCustomerAuditsSection.hidden = true;
+      return;
+    }
+
+    dom.modalCustomerAuditsSection.hidden = false;
+    for (const raw of items) {
+      const entry = normalizeChangeEntry("customers", raw);
+      const row = document.createElement("div");
+      row.className = "modal-audit-item";
+      const summary = entry.changes
+        .map(c => `${c.field || c.Field}: ${c.oldValue ?? c.OldValue ?? "∅"} → ${c.newValue ?? c.NewValue ?? "∅"}`)
+        .join(", ");
+      row.textContent = `${formatDateTime(entry.occurredAtUtc)} · ${entry.action} by ${entry.actorAuthority} (${entry.actorRole}) — ${summary}`;
+      dom.modalCustomerAuditsList.appendChild(row);
+    }
+  }
+
   function populateModalCustomer(details) {
     const normalized = normalizeCustomerDetails(details);
     if (!normalized) {
@@ -777,6 +1221,15 @@
 
     const validStates = ["valid", "incomplete", "suspicious", "locked"];
     dom.modalStateSelect.value = validStates.includes(normalized.state) ? normalized.state : "valid";
+
+    const editable = canMutateCustomers();
+    dom.modalNameInput.disabled = !editable;
+    dom.modalEmailInput.disabled = !editable;
+    dom.modalAddressInput.disabled = !editable;
+    dom.modalStateSelect.disabled = !editable;
+    dom.modalSaveState.hidden = !editable;
+    dom.modalResetEdit.hidden = !editable;
+    dom.modalEditSubmit.hidden = !editable;
   }
 
   function resetModalEditForm() {
@@ -794,6 +1247,7 @@
     }
 
     state.selectedCustomer = null;
+    state.selectedCustomerCiam = null;
     dom.customerModal.hidden = false;
     dom.modalLoading.hidden = false;
     dom.modalContent.hidden = true;
@@ -802,8 +1256,13 @@
     showMessage(dom.modalMessage, "");
 
     try {
-      const response = await apiRequest(`/customers/${encodeURIComponent(customerId)}`);
-      if (response.status === 401 || response.status === 403) {
+      const [response, ciamResp, auditsResp] = await Promise.all([
+        apiRequest(`/customers/${encodeURIComponent(customerId)}`),
+        apiRequest(`/customer-accounts/users/${encodeURIComponent(customerId)}`),
+        apiRequest(`/customers/${encodeURIComponent(customerId)}/change-audits?limit=10`)
+      ]);
+
+      if (response.status === 401) {
         closeCustomerModal();
         redirectToLogin("expired");
         return;
@@ -819,8 +1278,12 @@
       }
 
       populateModalCustomer(response.data);
+      populateModalCiamSupport(ciamResp.ok ? ciamResp.data : null);
+      renderModalCustomerAudits(auditsResp.ok ? auditsResp.data : []);
       dom.modalContent.hidden = false;
-      dom.modalNameInput.focus();
+      if (canMutateCustomers()) {
+        dom.modalNameInput.focus();
+      }
     } catch {
       dom.modalContent.hidden = false;
       showMessage(dom.modalMessage, "Network error while loading customer details.");
@@ -829,9 +1292,70 @@
     }
   }
 
+  async function handleUnlockCustomerLogin() {
+    if (!state.selectedCustomer?.id || !canMutateCustomers()) {
+      return;
+    }
+
+    const customerId = state.selectedCustomer.id;
+    setModalBusy(true);
+    try {
+      const response = await apiRequest(`/customer-accounts/users/${encodeURIComponent(customerId)}/unlock`, {
+        method: "POST"
+      });
+      if (!response.ok) {
+        showMessage(dom.modalMessage, friendlyApiError(response.status, response.data, "Could not unlock customer sign-in."));
+        return;
+      }
+      const ciamResp = await apiRequest(`/customer-accounts/users/${encodeURIComponent(customerId)}`);
+      populateModalCiamSupport(ciamResp.ok ? ciamResp.data : null);
+      showMessage(dom.modalMessage, "Customer sign-in unlocked in identitydb.", "success");
+      showToast("Customer login unlocked.");
+    } catch {
+      showMessage(dom.modalMessage, "Network error while unlocking customer sign-in.");
+    } finally {
+      setModalBusy(false);
+    }
+  }
+
+  async function handleUpdateCustomerCiamEmail() {
+    if (!state.selectedCustomer?.id || !canMutateCustomers()) {
+      return;
+    }
+
+    const customerId = state.selectedCustomer.id;
+    const newEmail = dom.modalCiamEmailInput.value.trim();
+    if (!newEmail || !newEmail.includes("@")) {
+      showMessage(dom.modalMessage, "Please enter a valid sign-in email address.");
+      return;
+    }
+
+    setModalBusy(true);
+    try {
+      const response = await apiRequest(`/customer-accounts/users/${encodeURIComponent(customerId)}/email`, {
+        method: "PUT",
+        body: { newEmail }
+      });
+      if (!response.ok) {
+        showMessage(dom.modalMessage, friendlyApiError(response.status, response.data, "Could not update customer sign-in email."));
+        return;
+      }
+      populateModalCiamSupport(response.data);
+      dom.modalEmailInput.value = newEmail;
+      showMessage(dom.modalMessage, "Sign-in email updated in identitydb and queued for profile sync.", "success");
+      showToast("Customer sign-in email updated.");
+      await loadDirectory({ silent: true });
+    } catch {
+      showMessage(dom.modalMessage, "Network error while updating customer sign-in email.");
+    } finally {
+      setModalBusy(false);
+    }
+  }
+
   function closeCustomerModal() {
     dom.customerModal.hidden = true;
     state.selectedCustomer = null;
+    state.selectedCustomerCiam = null;
     showMessage(dom.modalMessage, "");
   }
 
@@ -839,11 +1363,17 @@
     dom.modalEditSubmit.disabled = busy;
     dom.modalSaveState.disabled = busy;
     dom.modalResetEdit.disabled = busy;
+    if (dom.modalUnlockLogin) {
+      dom.modalUnlockLogin.disabled = busy;
+    }
+    if (dom.modalSaveCiamEmail) {
+      dom.modalSaveCiamEmail.disabled = busy;
+    }
   }
 
   async function submitCustomerEdit(event) {
     event.preventDefault();
-    if (!state.selectedCustomer?.id) {
+    if (!state.selectedCustomer?.id || !canMutateCustomers()) {
       return;
     }
 
@@ -896,7 +1426,7 @@
         body: payload
       });
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         closeCustomerModal();
         redirectToLogin("expired");
         return;
@@ -912,11 +1442,11 @@
 
       if (response.data) {
         populateModalCustomer(response.data);
-      } else {
-        const refreshed = await apiRequest(`/customers/${encodeURIComponent(customerId)}`);
-        if (refreshed.ok && refreshed.data) {
-          populateModalCustomer(refreshed.data);
-        }
+      }
+
+      const auditsResp = await apiRequest(`/customers/${encodeURIComponent(customerId)}/change-audits?limit=10`);
+      if (auditsResp.ok) {
+        renderModalCustomerAudits(auditsResp.data);
       }
 
       showMessage(dom.modalMessage, "Customer record updated.", "success");
@@ -930,7 +1460,7 @@
   }
 
   async function submitModalStateOnly() {
-    if (!state.selectedCustomer?.id) {
+    if (!state.selectedCustomer?.id || !canMutateCustomers()) {
       return;
     }
 
@@ -949,7 +1479,7 @@
         { method: "PUT" }
       );
 
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         closeCustomerModal();
         redirectToLogin("expired");
         return;
@@ -963,12 +1493,15 @@
         return;
       }
 
-      const refreshed = await apiRequest(`/customers/${encodeURIComponent(customerId)}`);
+      const [refreshed, auditsResp] = await Promise.all([
+        apiRequest(`/customers/${encodeURIComponent(customerId)}`),
+        apiRequest(`/customers/${encodeURIComponent(customerId)}/change-audits?limit=10`)
+      ]);
       if (refreshed.ok && refreshed.data) {
         populateModalCustomer(refreshed.data);
-      } else {
-        state.selectedCustomer.state = targetState;
-        populateModalCustomer(state.selectedCustomer);
+      }
+      if (auditsResp.ok) {
+        renderModalCustomerAudits(auditsResp.data);
       }
 
       showMessage(dom.modalMessage, `Lifecycle state updated to ${targetState}.`, "success");
@@ -1012,18 +1545,29 @@
   async function bootstrapAdminSession() {
     try {
       const me = await apiRequest("/admin-identity/me");
-      if (!me.ok || !me.data || String(me.data.role || "").toLowerCase() !== "admin") {
+      const role = String(me.data?.role || me.data?.Role || "").toLowerCase();
+      if (!me.ok || !me.data || !WORKFORCE_ROLES.has(role)) {
         redirectToLogin("expired");
         return;
       }
 
       state.adminId = me.data.id || me.data.Id || null;
-      state.email = me.data.email || me.data.Email || "Administrator";
-      state.role = "admin";
+      state.email = me.data.email || me.data.Email || "Employee";
+      state.role = role;
       updateIdentityHeader();
-      await loadDirectory();
+
+      const initialPath = window.location.pathname.toLowerCase();
+      if (initialPath === "/admins") {
+        switchView("admins");
+        await loadAdmins();
+      } else if (initialPath === "/audits") {
+        switchView("audits");
+        await loadChangeAudits();
+      } else {
+        await loadDirectory();
+      }
     } catch {
-      showMessage(dom.directoryError, "Unable to verify administrator session through the API Gateway.");
+      showMessage(dom.directoryError, "Unable to verify workforce session through the API Gateway.");
     }
   }
 
@@ -1042,9 +1586,18 @@
       loadAdmins();
     });
 
+    if (dom.navAudits) {
+      dom.navAudits.addEventListener("click", () => {
+        switchView("audits");
+        loadChangeAudits();
+      });
+    }
+
     dom.refreshWorkspace.addEventListener("click", () => {
       if (state.activeView === "admins") {
         loadAdmins();
+      } else if (state.activeView === "audits") {
+        loadChangeAudits();
       } else {
         loadDirectory();
       }
@@ -1052,11 +1605,29 @@
 
     dom.directoryRefresh.addEventListener("click", () => loadDirectory());
     dom.adminsRefresh.addEventListener("click", () => loadAdmins());
+    if (dom.auditsRefresh) {
+      dom.auditsRefresh.addEventListener("click", () => loadChangeAudits());
+    }
     dom.createAdminForm.addEventListener("submit", handleCreateAdmin);
+    if (dom.selfPasswordForm) {
+      dom.selfPasswordForm.addEventListener("submit", handleSelfPasswordChange);
+    }
     if (dom.adminAuditOutcomeFilter) {
       dom.adminAuditOutcomeFilter.addEventListener("change", event => {
         state.adminAuditOutcomeFilter = event.target.value || "all";
         renderAdminAuditRows();
+      });
+    }
+    if (dom.changeAuditsSourceFilter) {
+      dom.changeAuditsSourceFilter.addEventListener("change", event => {
+        state.changeAuditSourceFilter = event.target.value || "all";
+        renderChangeAudits();
+      });
+    }
+    if (dom.changeAuditsSearch) {
+      dom.changeAuditsSearch.addEventListener("input", event => {
+        state.changeAuditSearch = event.target.value || "";
+        renderChangeAudits();
       });
     }
 
@@ -1078,6 +1649,12 @@
 
     dom.modalEditForm.addEventListener("submit", submitCustomerEdit);
     dom.modalSaveState.addEventListener("click", submitModalStateOnly);
+    if (dom.modalUnlockLogin) {
+      dom.modalUnlockLogin.addEventListener("click", handleUnlockCustomerLogin);
+    }
+    if (dom.modalSaveCiamEmail) {
+      dom.modalSaveCiamEmail.addEventListener("click", handleUpdateCustomerCiamEmail);
+    }
     dom.modalResetEdit.addEventListener("click", resetModalEditForm);
     dom.modalCopyId.addEventListener("click", copyModalCustomerId);
     dom.modalClose.addEventListener("click", closeCustomerModal);

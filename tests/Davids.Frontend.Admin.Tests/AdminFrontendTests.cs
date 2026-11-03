@@ -79,7 +79,11 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
             Assert.Contains("X-Requested-With", appScript, StringComparison.Ordinal);
             Assert.Contains("/auth/logout", appScript, StringComparison.Ordinal);
             Assert.Contains("/admin-identity/me", appScript, StringComparison.Ordinal);
+            Assert.Contains("/admin-identity/me/password", appScript, StringComparison.Ordinal);
             Assert.Contains("/admin-identity/login-audits", appScript, StringComparison.Ordinal);
+            Assert.Contains("/admin-identity/change-audits", appScript, StringComparison.Ordinal);
+            Assert.Contains("/customer-accounts/change-audits", appScript, StringComparison.Ordinal);
+            Assert.Contains("/customers/change-audits", appScript, StringComparison.Ordinal);
             Assert.Contains("/customers?", appScript, StringComparison.Ordinal);
         }
 
@@ -90,6 +94,7 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
     [Theory]
     [InlineData("/directory")]
     [InlineData("/admins")]
+    [InlineData("/audits")]
     public async Task ClientSideWorkspaceRoutesServeIndexShellWithNoStoreCacheControl(string path)
     {
         using var client = factory.CreateClient();
