@@ -410,3 +410,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.commerce-admin-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, .95fr); gap: 18px; align-items: start; }
+.stock-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.status-chip { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 99px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.status-chip.completed, .status-chip.captured, .status-chip.active-sku { background: var(--green-light); color: var(--green); }
+.status-chip.pending_payment { background: var(--amber-light); color: var(--amber); }
+.status-chip.payment_failed, .status-chip.declined, .status-chip.cancelled, .status-chip.archived-sku { background: var(--red-light); color: var(--red); }
+@media (max-width: 1020px) {
+  .commerce-admin-grid { grid-template-columns: 1fr; }
+}

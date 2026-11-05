@@ -29,6 +29,8 @@
   const dom = {
     workspace: el("workspace"),
     navDirectory: el("nav-directory"),
+    navCatalog: el("nav-catalog"),
+    navLedger: el("nav-ledger"),
     navAdmins: el("nav-admins"),
     navAudits: el("nav-audits"),
     breadcrumbTitle: el("breadcrumb-title"),
@@ -92,6 +94,33 @@
     changeAuditsLoading: el("change-audits-loading"),
     changeAuditsError: el("change-audits-error"),
     changeAuditsTableBody: el("change-audits-tbody"),
+
+    catalogView: el("catalog-view"),
+    catalogRefresh: el("catalog-refresh"),
+    catalogSearch: el("catalog-search"),
+    catalogError: el("catalog-error"),
+    catalogTbody: el("catalog-tbody"),
+    catalogEditorCard: el("catalog-editor-card"),
+    catalogFormHeading: el("catalog-form-heading"),
+    catalogForm: el("catalog-form"),
+    catalogEditId: el("catalog-edit-id"),
+    catalogSku: el("catalog-sku"),
+    catalogName: el("catalog-name"),
+    catalogCategory: el("catalog-category"),
+    catalogPrice: el("catalog-price"),
+    catalogStock: el("catalog-stock"),
+    catalogActive: el("catalog-active"),
+    catalogDescription: el("catalog-description"),
+    catalogFormMessage: el("catalog-form-message"),
+    catalogFormReset: el("catalog-form-reset"),
+    catalogFormSubmit: el("catalog-form-submit"),
+
+    ledgerView: el("ledger-view"),
+    ledgerRefresh: el("ledger-refresh"),
+    ledgerSearch: el("ledger-search"),
+    ledgerStatusFilter: el("ledger-status-filter"),
+    ledgerOrdersTbody: el("ledger-orders-tbody"),
+    ledgerPaymentsTbody: el("ledger-payments-tbody"),
 
     customerModal: el("customer-modal"),
     modalBackdrop: el("modal-backdrop"),
@@ -264,6 +293,9 @@
     if (dom.provisionAdminCard) {
       dom.provisionAdminCard.hidden = !isIamAdmin();
     }
+    if (dom.catalogEditorCard) {
+      dom.catalogEditorCard.hidden = !isIamAdmin();
+    }
     if (dom.directoryModeCopy) {
       dom.directoryModeCopy.textContent = canMutateCustomers()
         ? "Select any customer row or click Edit customer to update profile details, account standing, or sign-in lockout status."
@@ -272,7 +304,8 @@
   }
 
   function switchView(view) {
-    const target = view === "admins" || view === "audits" ? view : "directory";
+    const allowed = new Set(["directory", "catalog", "ledger", "admins", "audits"]);
+    const target = allowed.has(view) ? view : "directory";
     state.activeView = target;
 
     dom.directoryView.hidden = target !== "directory";
@@ -280,18 +313,33 @@
     if (dom.auditsView) {
       dom.auditsView.hidden = target !== "audits";
     }
+    if (dom.catalogView) {
+      dom.catalogView.hidden = target !== "catalog";
+    }
+    if (dom.ledgerView) {
+      dom.ledgerView.hidden = target !== "ledger";
+    }
 
     dom.navDirectory.classList.toggle("active", target === "directory");
     dom.navAdmins.classList.toggle("active", target === "admins");
     if (dom.navAudits) {
       dom.navAudits.classList.toggle("active", target === "audits");
     }
+    if (dom.navCatalog) {
+      dom.navCatalog.classList.toggle("active", target === "catalog");
+    }
+    if (dom.navLedger) {
+      dom.navLedger.classList.toggle("active", target === "ledger");
+    }
 
-    dom.breadcrumbTitle.textContent = target === "admins"
-      ? "Workforce IAM"
-      : target === "audits"
-        ? "Unified Change Audit Trail"
-        : "Customer Directory";
+    const titles = {
+      directory: "Customer Directory",
+      catalog: "Product Catalog & Stock",
+      ledger: "Orders & Payment Ledger",
+      admins: "Workforce IAM",
+      audits: "Unified Change Audit Trail"
+    };
+    dom.breadcrumbTitle.textContent = titles[target] || "Customer Directory";
   }
 
   function formatDateTime(value) {
@@ -1071,13 +1119,14 @@
     dom.changeAuditsLoading.hidden = false;
 
     try {
-      const [custResp, ciamResp, iamResp] = await Promise.all([
+      const [custResp, prodResp, ciamResp, iamResp] = await Promise.all([
         apiRequest("/customers/change-audits?limit=100"),
+        apiRequest("/products/change-audits?limit=100"),
         apiRequest("/customer-accounts/change-audits?limit=100"),
         apiRequest("/admin-identity/change-audits?limit=100")
       ]);
 
-      if (custResp.status === 401 || ciamResp.status === 401 || iamResp.status === 401) {
+      if (custResp.status === 401 || prodResp.status === 401 || ciamResp.status === 401 || iamResp.status === 401) {
         redirectToLogin("expired");
         return;
       }
@@ -1086,6 +1135,15 @@
       if (custResp.ok && Array.isArray(custResp.data)) {
         for (const item of custResp.data) {
           combined.push(normalizeChangeEntry("customers", item));
+        }
+      }
+      if (prodResp.ok && Array.isArray(prodResp.data)) {
+        for (const item of prodResp.data) {
+          combined.push(normalizeChangeEntry("products", {
+            ...item,
+            targetUserId: item.productId,
+            targetEmail: `${item.sku || ""} ${item.productName || ""}`.trim()
+          }));
         }
       }
       if (ciamResp.ok && Array.isArray(ciamResp.data)) {
@@ -1528,6 +1586,289 @@
     }
   }
 
+  function resetCatalogForm() {
+    if (!dom.catalogForm) {
+      return;
+    }
+    dom.catalogEditId.value = "";
+    dom.catalogSku.value = "";
+    dom.catalogName.value = "";
+    dom.catalogCategory.value = "Hardware";
+    dom.catalogPrice.value = "99.00";
+    dom.catalogStock.value = "25";
+    dom.catalogStock.disabled = false;
+    dom.catalogActive.value = "true";
+    dom.catalogDescription.value = "";
+    dom.catalogFormHeading.textContent = "Create new product";
+    showMessage(dom.catalogFormMessage, "");
+  }
+
+  function populateCatalogEditor(prod) {
+    if (!isIamAdmin()) {
+      return;
+    }
+    dom.catalogEditId.value = String(prod.id || "");
+    dom.catalogSku.value = String(prod.sku || "");
+    dom.catalogName.value = String(prod.name || "");
+    dom.catalogCategory.value = String(prod.category || "Hardware");
+    dom.catalogPrice.value = Number(prod.price || 0).toFixed(2);
+    dom.catalogStock.value = String(prod.stockQuantity || 0);
+    dom.catalogStock.disabled = true;
+    dom.catalogActive.value = prod.isActive ? "true" : "false";
+    dom.catalogDescription.value = String(prod.description || "");
+    dom.catalogFormHeading.textContent = `Edit ${prod.sku}`;
+    showMessage(dom.catalogFormMessage, "");
+  }
+
+  async function adjustProductStock(productId, delta) {
+    const resp = await apiRequest(`/products/${encodeURIComponent(productId)}/stock`, {
+      method: "POST",
+      body: { delta, reason: "Workforce console adjustment" }
+    });
+    if (resp.status === 401) {
+      redirectToLogin("expired");
+      return;
+    }
+    if (!resp.ok) {
+      showToast(resp.data?.reason || "Unable to adjust stock.");
+      return;
+    }
+    showToast(`Updated stock for ${resp.data?.sku || "SKU"}.`);
+    await loadCatalog();
+  }
+
+  async function loadCatalog() {
+    if (!dom.catalogTbody) {
+      return;
+    }
+    showMessage(dom.catalogError, "");
+    const q = dom.catalogSearch?.value.trim() || "";
+    const path = q ? `/products/admin?search=${encodeURIComponent(q)}` : "/products/admin";
+    const resp = await apiRequest(path);
+    if (resp.status === 401) {
+      redirectToLogin("expired");
+      return;
+    }
+    dom.catalogTbody.replaceChildren();
+    if (!resp.ok || !Array.isArray(resp.data)) {
+      showMessage(dom.catalogError, resp.data?.reason || "Could not load catalog.");
+      return;
+    }
+
+    if (resp.data.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.className = "table-empty";
+      td.textContent = "No catalog SKUs matched your search.";
+      tr.appendChild(td);
+      dom.catalogTbody.appendChild(tr);
+      return;
+    }
+
+    for (const prod of resp.data) {
+      const tr = document.createElement("tr");
+      const skuTd = document.createElement("td");
+      const title = document.createElement("strong");
+      title.textContent = String(prod.name || "");
+      const sub = document.createElement("small");
+      sub.className = "audit-reason";
+      sub.textContent = String(prod.sku || "");
+      skuTd.append(title, sub);
+
+      const catTd = document.createElement("td");
+      catTd.textContent = String(prod.category || "");
+      const priceTd = document.createElement("td");
+      priceTd.textContent = `${prod.currency || "GBP"} ${Number(prod.price || 0).toFixed(2)}`;
+      const stockTd = document.createElement("td");
+      stockTd.textContent = String(prod.stockQuantity ?? 0);
+
+      const statusTd = document.createElement("td");
+      const chip = document.createElement("span");
+      chip.className = prod.isActive ? "status-chip active-sku" : "status-chip archived-sku";
+      chip.textContent = prod.isActive ? "active" : "archived";
+      statusTd.appendChild(chip);
+
+      const actTd = document.createElement("td");
+      const bar = document.createElement("div");
+      bar.className = "stock-actions";
+      if (canMutateCustomers()) {
+        const plusBtn = document.createElement("button");
+        plusBtn.type = "button";
+        plusBtn.className = "button button-outline";
+        plusBtn.textContent = "+5 stock";
+        plusBtn.addEventListener("click", () => adjustProductStock(prod.id, 5));
+        const minusBtn = document.createElement("button");
+        minusBtn.type = "button";
+        minusBtn.className = "button button-quiet";
+        minusBtn.textContent = "−1";
+        minusBtn.disabled = Number(prod.stockQuantity || 0) <= 0;
+        minusBtn.addEventListener("click", () => adjustProductStock(prod.id, -1));
+        bar.append(plusBtn, minusBtn);
+      }
+      if (isIamAdmin()) {
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "button button-quiet";
+        editBtn.textContent = "Edit";
+        editBtn.addEventListener("click", () => populateCatalogEditor(prod));
+        bar.appendChild(editBtn);
+      }
+      if (!canMutateCustomers()) {
+        bar.textContent = "Read-only";
+      }
+      actTd.appendChild(bar);
+
+      tr.append(skuTd, catTd, priceTd, stockTd, statusTd, actTd);
+      dom.catalogTbody.appendChild(tr);
+    }
+  }
+
+  async function handleSaveProduct(event) {
+    event.preventDefault();
+    if (!isIamAdmin()) {
+      return;
+    }
+    const editId = dom.catalogEditId.value.trim();
+    const sku = dom.catalogSku.value.trim();
+    const name = dom.catalogName.value.trim();
+    const category = dom.catalogCategory.value.trim();
+    const price = Number(dom.catalogPrice.value);
+    const stockQuantity = Number(dom.catalogStock.value || 0);
+    const isActive = dom.catalogActive.value === "true";
+    const description = dom.catalogDescription.value.trim();
+
+    if (!sku || !name || !category || !(price > 0)) {
+      showMessage(dom.catalogFormMessage, "Enter valid SKU, name, category, and positive price.");
+      return;
+    }
+
+    dom.catalogFormSubmit.disabled = true;
+    showMessage(dom.catalogFormMessage, "");
+    try {
+      const resp = editId
+        ? await apiRequest(`/products/${encodeURIComponent(editId)}`, {
+            method: "PUT",
+            body: { sku, name, description, category, price, currency: "GBP", isActive }
+          })
+        : await apiRequest("/products", {
+            method: "POST",
+            body: { sku, name, description, category, price, currency: "GBP", stockQuantity, isActive }
+          });
+
+      if (!resp.ok) {
+        showMessage(dom.catalogFormMessage, resp.data?.reason || "Unable to save product.");
+        return;
+      }
+      resetCatalogForm();
+      showToast(editId ? "Product updated." : "New SKU created.");
+      await loadCatalog();
+    } finally {
+      dom.catalogFormSubmit.disabled = false;
+    }
+  }
+
+  async function loadLedger() {
+    if (!dom.ledgerOrdersTbody) {
+      return;
+    }
+    const params = new URLSearchParams({ limit: "100" });
+    const search = dom.ledgerSearch?.value.trim() || "";
+    const status = dom.ledgerStatusFilter?.value || "";
+    if (search) {
+      params.set("search", search);
+    }
+    if (status) {
+      params.set("status", status);
+    }
+
+    const [ordersResp, paymentsResp] = await Promise.all([
+      apiRequest(`/orders?${params.toString()}`),
+      apiRequest("/payments?limit=100")
+    ]);
+    if (ordersResp.status === 401 || paymentsResp.status === 401) {
+      redirectToLogin("expired");
+      return;
+    }
+
+    dom.ledgerOrdersTbody.replaceChildren();
+    const orders = ordersResp.ok && Array.isArray(ordersResp.data) ? ordersResp.data : [];
+    if (orders.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 7;
+      td.className = "table-empty";
+      td.textContent = "No orders match the current filter.";
+      tr.appendChild(td);
+      dom.ledgerOrdersTbody.appendChild(tr);
+    } else {
+      for (const ord of orders) {
+        const tr = document.createElement("tr");
+        const idTd = document.createElement("td");
+        idTd.textContent = String(ord.id || "").slice(0, 8).toUpperCase();
+        const custTd = document.createElement("td");
+        const recStrong = document.createElement("strong");
+        recStrong.textContent = String(ord.shippingFullName || "");
+        const emSmall = document.createElement("small");
+        emSmall.className = "audit-reason";
+        emSmall.textContent = String(ord.customerEmail || ord.customerId || "");
+        custTd.append(recStrong, emSmall);
+        const dtTd = document.createElement("td");
+        dtTd.textContent = formatDateTime(ord.createdAt);
+        const countTd = document.createElement("td");
+        countTd.textContent = String(ord.itemCount || 0);
+        const totTd = document.createElement("td");
+        totTd.textContent = `${ord.currency || "GBP"} ${Number(ord.totalAmount || 0).toFixed(2)}`;
+        const stTd = document.createElement("td");
+        const chip = document.createElement("span");
+        const stStr = String(ord.status || "pending_payment");
+        chip.className = `status-chip ${stStr}`;
+        chip.textContent = stStr.replace(/_/g, " ");
+        stTd.appendChild(chip);
+        const refTd = document.createElement("td");
+        refTd.textContent = String(ord.paymentReference || ord.failureReason || "—");
+        tr.append(idTd, custTd, dtTd, countTd, totTd, stTd, refTd);
+        dom.ledgerOrdersTbody.appendChild(tr);
+      }
+    }
+
+    dom.ledgerPaymentsTbody.replaceChildren();
+    const payments = paymentsResp.ok && Array.isArray(paymentsResp.data) ? paymentsResp.data : [];
+    if (payments.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 7;
+      td.className = "table-empty";
+      td.textContent = "No payment capture transactions recorded yet.";
+      tr.appendChild(td);
+      dom.ledgerPaymentsTbody.appendChild(tr);
+    } else {
+      for (const pay of payments) {
+        const tr = document.createElement("tr");
+        const dtTd = document.createElement("td");
+        dtTd.textContent = formatDateTime(pay.createdAt);
+        const ordTd = document.createElement("td");
+        ordTd.textContent = String(pay.orderId || "").slice(0, 8).toUpperCase();
+        const refTd = document.createElement("td");
+        refTd.textContent = String(pay.providerReference || "");
+        const cardTd = document.createElement("td");
+        cardTd.textContent = `${pay.paymentMethod || "card"} •••• ${pay.cardLast4 || "4242"}`;
+        const amtTd = document.createElement("td");
+        amtTd.textContent = `${pay.currency || "GBP"} ${Number(pay.amount || 0).toFixed(2)}`;
+        const stTd = document.createElement("td");
+        const chip = document.createElement("span");
+        const pSt = String(pay.status || "captured");
+        chip.className = `status-chip ${pSt}`;
+        chip.textContent = pSt;
+        stTd.appendChild(chip);
+        const noteTd = document.createElement("td");
+        noteTd.textContent = String(pay.failureReason || "Captured");
+        tr.append(dtTd, ordTd, refTd, cardTd, amtTd, stTd, noteTd);
+        dom.ledgerPaymentsTbody.appendChild(tr);
+      }
+    }
+  }
+
   async function handleSignOut() {
     closeCustomerModal();
 
@@ -1563,6 +1904,12 @@
       } else if (initialPath === "/audits") {
         switchView("audits");
         await loadChangeAudits();
+      } else if (initialPath === "/catalog") {
+        switchView("catalog");
+        await loadCatalog();
+      } else if (initialPath === "/ledger") {
+        switchView("ledger");
+        await loadLedger();
       } else {
         await loadDirectory();
       }
@@ -1581,6 +1928,20 @@
       loadDirectory();
     });
 
+    if (dom.navCatalog) {
+      dom.navCatalog.addEventListener("click", () => {
+        switchView("catalog");
+        loadCatalog();
+      });
+    }
+
+    if (dom.navLedger) {
+      dom.navLedger.addEventListener("click", () => {
+        switchView("ledger");
+        loadLedger();
+      });
+    }
+
     dom.navAdmins.addEventListener("click", () => {
       switchView("admins");
       loadAdmins();
@@ -1598,6 +1959,10 @@
         loadAdmins();
       } else if (state.activeView === "audits") {
         loadChangeAudits();
+      } else if (state.activeView === "catalog") {
+        loadCatalog();
+      } else if (state.activeView === "ledger") {
+        loadLedger();
       } else {
         loadDirectory();
       }
@@ -1607,6 +1972,27 @@
     dom.adminsRefresh.addEventListener("click", () => loadAdmins());
     if (dom.auditsRefresh) {
       dom.auditsRefresh.addEventListener("click", () => loadChangeAudits());
+    }
+    if (dom.catalogRefresh) {
+      dom.catalogRefresh.addEventListener("click", () => loadCatalog());
+    }
+    if (dom.catalogSearch) {
+      dom.catalogSearch.addEventListener("input", () => loadCatalog());
+    }
+    if (dom.catalogForm) {
+      dom.catalogForm.addEventListener("submit", handleSaveProduct);
+    }
+    if (dom.catalogFormReset) {
+      dom.catalogFormReset.addEventListener("click", resetCatalogForm);
+    }
+    if (dom.ledgerRefresh) {
+      dom.ledgerRefresh.addEventListener("click", () => loadLedger());
+    }
+    if (dom.ledgerSearch) {
+      dom.ledgerSearch.addEventListener("input", () => loadLedger());
+    }
+    if (dom.ledgerStatusFilter) {
+      dom.ledgerStatusFilter.addEventListener("change", () => loadLedger());
     }
     dom.createAdminForm.addEventListener("submit", handleCreateAdmin);
     if (dom.selfPasswordForm) {

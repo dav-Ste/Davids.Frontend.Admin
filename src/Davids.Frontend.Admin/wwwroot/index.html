@@ -27,6 +27,16 @@
           <span>Customers</span>
           <span class="nav-badge">DIR</span>
         </button>
+        <button id="nav-catalog" class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z" stroke="currentColor" stroke-width="1.6"/><path d="M12 12 20 7.5M12 12v9M12 12 4 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Product Catalog</span>
+          <span class="nav-badge">SKU</span>
+        </button>
+        <button id="nav-ledger" class="nav-item" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 10h17M7.5 14.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Orders &amp; Payments</span>
+          <span class="nav-badge">ORD</span>
+        </button>
         <button id="nav-admins" class="nav-item" type="button">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 19 6v5c0 4.4-2.9 8.3-7 10-4.1-1.7-7-5.6-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>Administrators</span>
@@ -302,6 +312,7 @@
                 <select id="change-audits-source-filter" class="filter-select" aria-label="Filter by audit source">
                   <option value="all">All audit stores</option>
                   <option value="customers">Customer profiles (customersdb)</option>
+                  <option value="products">Product catalog (productsdb)</option>
                   <option value="customer-accounts">Customer logins (identitydb)</option>
                   <option value="admin-identity">Workforce IAM (adminidentitydb)</option>
                 </select>
@@ -322,6 +333,147 @@
                   </tr>
                 </thead>
                 <tbody id="change-audits-tbody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section id="catalog-view" class="page-view" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">COMMERCE CATALOG &amp; STOCK (PRODUCTSDB)</p>
+              <h1>Product catalog &amp; inventory</h1>
+              <p class="page-subtitle">Manage seeded SKUs, pricing, active availability (<code>admin</code>), and live warehouse stock adjustments (<code>admin</code> &amp; <code>support</code>).</p>
+            </div>
+            <button id="catalog-refresh" class="button button-outline" type="button">Refresh catalog</button>
+          </div>
+
+          <div class="commerce-admin-grid">
+            <article class="surface-card directory-card">
+              <div class="directory-toolbar">
+                <div class="directory-toolbar-head">
+                  <h2>Catalog SKUs</h2>
+                  <p class="muted-copy">Select Edit to load a SKU into the editor, or use +5 / −1 stock controls.</p>
+                </div>
+                <div class="directory-filters">
+                  <input id="catalog-search" class="text-input" type="search" placeholder="Search SKU, name, or category…" aria-label="Search products">
+                </div>
+              </div>
+              <div id="catalog-error" class="inline-message" role="alert" hidden></div>
+              <div class="table-wrap">
+                <table class="customer-table">
+                  <thead>
+                    <tr>
+                      <th>SKU &amp; PRODUCT</th>
+                      <th>CATEGORY</th>
+                      <th>PRICE</th>
+                      <th>STOCK</th>
+                      <th>STATUS</th>
+                      <th>ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="catalog-tbody"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article id="catalog-editor-card" class="surface-card complete-card">
+              <p class="eyebrow">CATALOG SKU EDITOR (ADMIN ONLY)</p>
+              <h2 id="catalog-form-heading">Create new product</h2>
+              <form id="catalog-form" class="form-stack" novalidate>
+                <input id="catalog-edit-id" type="hidden" value="">
+                <label class="field-label" for="catalog-sku">SKU code</label>
+                <input id="catalog-sku" class="text-input" type="text" maxlength="32" placeholder="DEV-NEW-001" required>
+                <label class="field-label" for="catalog-name">Product name</label>
+                <input id="catalog-name" class="text-input" type="text" maxlength="120" placeholder="Product title" required>
+                <label class="field-label" for="catalog-category">Category</label>
+                <input id="catalog-category" class="text-input" type="text" maxlength="60" value="Hardware" required>
+                <label class="field-label" for="catalog-price">Unit price (GBP)</label>
+                <input id="catalog-price" class="text-input" type="number" step="0.01" min="0.01" value="99.00" required>
+                <label class="field-label" for="catalog-stock">Initial stock (new SKU) / status</label>
+                <div class="state-edit-controls">
+                  <input id="catalog-stock" class="text-input" type="number" step="1" min="0" value="25">
+                  <select id="catalog-active" class="text-input select-input" aria-label="SKU visibility">
+                    <option value="true">Active</option>
+                    <option value="false">Archived</option>
+                  </select>
+                </div>
+                <label class="field-label" for="catalog-description">Description</label>
+                <textarea id="catalog-description" class="text-input text-area" rows="3" maxlength="1000" placeholder="Technical summary"></textarea>
+                <div id="catalog-form-message" class="inline-message" role="status" hidden></div>
+                <div class="modal-edit-actions">
+                  <button id="catalog-form-reset" class="button button-outline" type="button">New SKU</button>
+                  <button id="catalog-form-submit" class="button button-primary" type="submit">Save product</button>
+                </div>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section id="ledger-view" class="page-view" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">CUSTOMER ORDERS &amp; ASYNC PAYMENTS (ORDERSDB &amp; PAYMENTSDB)</p>
+              <h1>Orders &amp; payment ledger</h1>
+              <p class="page-subtitle">Inspect customer checkouts, shipping destinations, RabbitMQ saga transitions, and payment provider references across all customers.</p>
+            </div>
+            <button id="ledger-refresh" class="button button-outline" type="button">Refresh ledger</button>
+          </div>
+
+          <article class="surface-card directory-card">
+            <div class="directory-toolbar">
+              <div class="directory-toolbar-head">
+                <h2>Customer orders</h2>
+              </div>
+              <div class="directory-filters">
+                <input id="ledger-search" class="text-input" type="search" placeholder="Search customer email, recipient, or payment ref…" aria-label="Search orders">
+                <select id="ledger-status-filter" class="filter-select" aria-label="Filter orders by status">
+                  <option value="">All statuses</option>
+                  <option value="pending_payment">Pending payment</option>
+                  <option value="completed">Completed</option>
+                  <option value="payment_failed">Payment failed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="customer-table audit-table">
+                <thead>
+                  <tr>
+                    <th>ORDER ID</th>
+                    <th>CUSTOMER &amp; RECIPIENT</th>
+                    <th>PLACED</th>
+                    <th>ITEMS</th>
+                    <th>TOTAL</th>
+                    <th>STATUS</th>
+                    <th>PAYMENT REF</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-orders-tbody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="surface-card directory-card audit-log-card">
+            <div class="directory-toolbar">
+              <div class="directory-toolbar-head">
+                <h2>Payment capture transactions (paymentsdb)</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="customer-table audit-table">
+                <thead>
+                  <tr>
+                    <th>TIMESTAMP</th>
+                    <th>ORDER ID</th>
+                    <th>PROVIDER REF</th>
+                    <th>CARD / METHOD</th>
+                    <th>AMOUNT</th>
+                    <th>STATUS</th>
+                    <th>REASON</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-payments-tbody"></tbody>
               </table>
             </div>
           </article>

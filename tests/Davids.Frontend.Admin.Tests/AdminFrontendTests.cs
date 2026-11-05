@@ -28,6 +28,8 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
 
         var workspaceHtml = await workspaceResponse.Content.ReadAsStringAsync();
         Assert.Contains("Customer Directory", workspaceHtml);
+        Assert.Contains("Product catalog &amp; inventory", workspaceHtml);
+        Assert.Contains("Orders &amp; payment ledger", workspaceHtml);
         Assert.Contains("Edit customer", workspaceHtml);
         Assert.Contains("Administrators", workspaceHtml);
         Assert.Contains("Administrator login attempts", workspaceHtml);
@@ -84,7 +86,12 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
             Assert.Contains("/admin-identity/change-audits", appScript, StringComparison.Ordinal);
             Assert.Contains("/customer-accounts/change-audits", appScript, StringComparison.Ordinal);
             Assert.Contains("/customers/change-audits", appScript, StringComparison.Ordinal);
+            Assert.Contains("/products/change-audits", appScript, StringComparison.Ordinal);
+            Assert.Contains("/products/admin", appScript, StringComparison.Ordinal);
+            Assert.Contains("/orders?", appScript, StringComparison.Ordinal);
+            Assert.Contains("/payments?", appScript, StringComparison.Ordinal);
             Assert.Contains("/customers?", appScript, StringComparison.Ordinal);
+            Assert.DoesNotContain("innerHTML", appScript, StringComparison.Ordinal);
         }
 
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
@@ -93,6 +100,8 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
 
     [Theory]
     [InlineData("/directory")]
+    [InlineData("/catalog")]
+    [InlineData("/ledger")]
     [InlineData("/admins")]
     [InlineData("/audits")]
     public async Task ClientSideWorkspaceRoutesServeIndexShellWithNoStoreCacheControl(string path)
