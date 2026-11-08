@@ -1730,7 +1730,7 @@
       return;
     }
     const editId = dom.catalogEditId.value.trim();
-    const sku = dom.catalogSku.value.trim();
+    const sku = dom.catalogSku.value.trim().toUpperCase();
     const name = dom.catalogName.value.trim();
     const category = dom.catalogCategory.value.trim();
     const price = Number(dom.catalogPrice.value);
@@ -1749,7 +1749,7 @@
       const resp = editId
         ? await apiRequest(`/products/${encodeURIComponent(editId)}`, {
             method: "PUT",
-            body: { sku, name, description, category, price, currency: "GBP", isActive }
+            body: { name, description, category, price, currency: "GBP", stockQuantity, isActive }
           })
         : await apiRequest("/products", {
             method: "POST",
