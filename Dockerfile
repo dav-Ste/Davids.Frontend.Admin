@@ -17,7 +17,7 @@ COPY Davids.Frontend.Admin/src/ ./Davids.Frontend.Admin/src/
 RUN dotnet publish ./Davids.Frontend.Admin/src/Davids.Frontend.Admin/Davids.Frontend.Admin.csproj \
       --no-restore -c Release /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra AS runtime
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     DOTNET_EnableDiagnostics=0
