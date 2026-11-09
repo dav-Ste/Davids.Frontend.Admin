@@ -44,8 +44,8 @@
 
       if (response.ok) {
         const session = await response.json();
-        if (session && session.authenticated && String(session.role || "").toLowerCase() === "admin") {
-          window.location.replace("/");
+        if (session && session.authenticated && new Set(["admin", "support", "auditor"]).has(String(session.role || "").toLowerCase())) {
+          window.location.replace("/admin");
         }
       }
     } catch {
@@ -56,7 +56,7 @@
   function startOidcLogin() {
     setBusy(true);
     showMessage("");
-    window.location.assign("/auth/login?returnUrl=%2F");
+    window.location.assign("/auth/login?returnUrl=%2Fadmin");
   }
 
   function init() {

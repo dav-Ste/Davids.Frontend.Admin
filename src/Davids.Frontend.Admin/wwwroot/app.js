@@ -198,7 +198,7 @@
   }
 
   function redirectToLogin(reason) {
-    const target = reason ? `/login?reason=${encodeURIComponent(reason)}` : "/login";
+    const target = reason ? `/admin/login?reason=${encodeURIComponent(reason)}` : "/admin/login";
     window.location.replace(target);
   }
 
@@ -1898,16 +1898,16 @@
       updateIdentityHeader();
 
       const initialPath = window.location.pathname.toLowerCase();
-      if (initialPath === "/admins") {
+      if (initialPath === "/admin/admins") {
         switchView("admins");
         await loadAdmins();
-      } else if (initialPath === "/audits") {
+      } else if (initialPath === "/admin/audits") {
         switchView("audits");
         await loadChangeAudits();
-      } else if (initialPath === "/catalog") {
+      } else if (initialPath === "/admin/catalog") {
         switchView("catalog");
         await loadCatalog();
-      } else if (initialPath === "/ledger") {
+      } else if (initialPath === "/admin/ledger") {
         switchView("ledger");
         await loadLedger();
       } else {

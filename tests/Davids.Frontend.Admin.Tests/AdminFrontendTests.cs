@@ -16,7 +16,7 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
     {
         using var client = factory.CreateClient();
 
-        using var workspaceResponse = await client.GetAsync("/");
+        using var workspaceResponse = await client.GetAsync("/admin");
         Assert.Equal(HttpStatusCode.OK, workspaceResponse.StatusCode);
         Assert.Equal("text/html", workspaceResponse.Content.Headers.ContentType?.MediaType);
         Assert.Equal("nosniff", workspaceResponse.Headers.GetValues("X-Content-Type-Options").Single());
@@ -36,7 +36,7 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
         Assert.DoesNotContain("Sign Up", workspaceHtml);
         Assert.DoesNotContain("/identity/", workspaceHtml, StringComparison.OrdinalIgnoreCase);
 
-        using var loginResponse = await client.GetAsync("/login");
+        using var loginResponse = await client.GetAsync("/admin/login");
         Assert.Equal(HttpStatusCode.OK, loginResponse.StatusCode);
         var loginHtml = await loginResponse.Content.ReadAsStringAsync();
         Assert.Contains("Administrator Single Sign-On", loginHtml);
@@ -46,11 +46,11 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Theory]
-    [InlineData("/app.css", "text/css")]
-    [InlineData("/login.css", "text/css")]
-    [InlineData("/app.js", "text/javascript")]
-    [InlineData("/login.js", "text/javascript")]
-    [InlineData("/favicon.svg", "image/svg+xml")]
+    [InlineData("/admin/app.css", "text/css")]
+    [InlineData("/admin/login.css", "text/css")]
+    [InlineData("/admin/app.js", "text/javascript")]
+    [InlineData("/admin/login.js", "text/javascript")]
+    [InlineData("/admin/favicon.svg", "image/svg+xml")]
     public async Task ServesStaticAssetsAndExposesHealthChecks(string assetPath, string expectedMediaType)
     {
         using var client = factory.CreateClient();
@@ -68,14 +68,14 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
             Assert.DoesNotContain("/sign-in", script, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (assetPath == "/login.js")
+        if (assetPath == "/admin/login.js")
         {
             var loginScript = await asset.Content.ReadAsStringAsync();
             Assert.Contains("/auth/login", loginScript, StringComparison.Ordinal);
             Assert.Contains("/auth/session", loginScript, StringComparison.Ordinal);
         }
 
-        if (assetPath == "/app.js")
+        if (assetPath == "/admin/app.js")
         {
             var appScript = await asset.Content.ReadAsStringAsync();
             Assert.Contains("X-Requested-With", appScript, StringComparison.Ordinal);
@@ -99,11 +99,11 @@ public sealed class AdminFrontendTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Theory]
-    [InlineData("/directory")]
-    [InlineData("/catalog")]
-    [InlineData("/ledger")]
-    [InlineData("/admins")]
-    [InlineData("/audits")]
+    [InlineData("/admin/directory") ]
+    [InlineData("/admin/catalog") ]
+    [InlineData("/admin/ledger") ]
+    [InlineData("/admin/admins") ]
+    [InlineData("/admin/audits") ]
     public async Task ClientSideWorkspaceRoutesServeIndexShellWithNoStoreCacheControl(string path)
     {
         using var client = factory.CreateClient();

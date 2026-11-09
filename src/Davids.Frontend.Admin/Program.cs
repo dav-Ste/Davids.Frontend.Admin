@@ -25,8 +25,15 @@ app.MapMethods("/login", new[] { "GET", "HEAD" }, (IWebHostEnvironment env) =>
     return Results.File(loginFile, "text/html; charset=utf-8");
 });
 
+// The portal is mounted at /admin at the gateway. Also serve those paths
+// directly so its root-relative assets work when the frontend runs standalone.
+app.MapMethods("/admin/login", new[] { "GET", "HEAD" }, (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "login.html"), "text/html; charset=utf-8"));
+app.MapMethods("/admin", new[] { "GET", "HEAD" }, (IWebHostEnvironment env) =>
+    Results.File(Path.Combine(env.WebRootPath, "index.html"), "text/html; charset=utf-8"));
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions { RequestPath = "/admin" });
 app.MapDefaultEndpoints();
 app.MapFallbackToFile("index.html");
 app.Run();

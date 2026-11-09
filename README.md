@@ -8,26 +8,26 @@
 
 ## Projects
 
-- `src/Davids.Frontend.Admin`: Static-asset and Razor/Minimal host serving the administrator SSO entry card (`/login`) and the gateway-gated customer search, editing, administrator IAM, and login-audit workspace (`/`) with strict Content-Security-Policy (`default-src 'self'; script-src 'self'; frame-ancestors 'none'`).
+- `src/Davids.Frontend.Admin`: Static-asset and Razor/Minimal host serving the administrator SSO entry card (`/admin/login`) and the gateway-gated customer search, editing, administrator IAM, and login-audit workspace (`/admin`) with strict Content-Security-Policy (`default-src 'self'; script-src 'self'; frame-ancestors 'none'`).
 - `tests/Davids.Frontend.Admin.Tests`: Unit, Clean Architecture, CSP/security-header, and integration tests verifying HTML/asset delivery, health probes, and zero inline/token storage patterns.
 
 ## Passwordless frontend & Gateway OIDC BFF security
 
 - **Zero credential or token handling in frontend JavaScript**:
   - `Davids.Frontend.Admin` never collects administrator passwords, never calls `/connect/token` or refresh endpoints, and never stores tokens in `localStorage`, `sessionStorage`, or `document.cookie`.
-  - `/login` renders a hardened Single Sign-On card that initiates OAuth 2.1 **Authorization Code + PKCE (`S256`)** via `GET /auth/login?returnUrl=%2F` on [`Davids.APIGateway`](https://github.com/dav-Ste/Davids.APIGateway), redirecting the browser to [`Davids.Services.AdminIdentity`](https://github.com/dav-Ste/Davids.Services.AdminIdentity) (`/admin-identity/connect/authorize`).
-- **Strict `admin` role boundary at `Davids.APIGateway` & Istio mesh**:
-  - `/` and all Admin Web frontend workspace assets (`index.html`, `app.css`, `app.js`) require a verified administrator session (`AdminBffCookie` `davids_admin_bff` or `AdminBearer`, `role == "admin"`), and in Kubernetes Istio `AuthorizationPolicy` restricts ingress to `Davids.Frontend.Admin` exclusively to principal `cluster.local/ns/davids/sa/davids-api-gateway`.
-  - Unauthenticated browser HTML navigations to `/` redirect (`302 Found`) to `/login`; authenticated customer users (`CustomerBearer`) receive `403 Forbidden`.
+  - `/admin/login` renders a hardened Single Sign-On card that initiates OAuth 2.1 **Authorization Code + PKCE (`S256`)** via `GET /auth/login?returnUrl=%2Fadmin` on [`Davids.APIGateway`](https://github.com/dav-Ste/Davids.APIGateway), redirecting the browser to [`Davids.Services.AdminIdentity`](https://github.com/dav-Ste/Davids.Services.AdminIdentity) (`/admin-identity/connect/authorize`).
+- **Strict workforce role boundary at `Davids.APIGateway` & Istio mesh**:
+  - `/admin` and all Admin Web frontend workspace assets (`index.html`, `app.css`, `app.js`) require a verified workforce session (`AdminBffCookie` `davids_admin_bff` or `AdminBearer`, role `admin`, `support`, or `auditor`), and in Kubernetes Istio `AuthorizationPolicy` restricts ingress to `Davids.Frontend.Admin` exclusively to principal `cluster.local/ns/davids/sa/davids-api-gateway`.
+  - Unauthenticated browser HTML navigations to `/admin` redirect (`302 Found`) to `/admin/login`; customer-only sessions cannot access protected workforce assets or APIs.
   - State-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) carry `X-Requested-With: DavidsAdmin` and same-origin `Origin` headers verified at `Davids.APIGateway`.
 - **Complete database and cryptographic isolation**:
   - Administrator accounts are stored exclusively in `adminidentitydb` (`Davids.Services.AdminIdentity`), never in `identitydb` (`Davids.Services.Identity`) or `customersdb` (`Davids.Services.Customers`).
 
 ## Capabilities
 
-- **Workforce OIDC Single Sign-On (`/login` -> `/auth/login` -> `/signin-oidc`)**: Initiates the Gateway BFF PKCE `S256` login flow for workforce roles (`admin`, `support`, `auditor`), supports self-service employee password rotation (`PUT /admin-identity/me/password`), and terminates sessions cleanly via `POST /auth/logout` (RFC 7009 revocation).
+- **Workforce OIDC Single Sign-On (`/admin/login` -> `/auth/login` -> `/signin-oidc`)**: Initiates the Gateway BFF PKCE `S256` login flow for workforce roles (`admin`, `support`, `auditor`), supports self-service employee password rotation (`PUT /admin-identity/me/password`), and terminates sessions cleanly via `POST /auth/logout` (RFC 7009 revocation).
 - **Customer directory & CIAM support (`GET /customers`, `PUT /customers/{customerId}`, `/customer-accounts/users/{userId}`)**: Role-aware customer search, profile/state editing (`admin` and `support`; read-only for `auditor`), customer lockout unlock (`POST /customer-accounts/users/{userId}/unlock`), and verified customer email recovery (`PUT /customer-accounts/users/{userId}/email`).
-- **Workforce IAM & unified audit trails (`GET/POST/PUT /admin-identity/users`, `/audits`)**: `admin`-only workforce account creation, role assignment (`admin`/`support`/`auditor` with last-admin protection), deactivation, and unlock, plus unified Workforce IAM, Customer Profile, Customer CIAM, and Login Audit views for `admin`, `support`, and `auditor`.
+- **Workforce IAM & unified audit trails (`GET/POST/PUT /admin-identity/users`, `/admin/audits`)**: `admin`-only workforce account creation, role assignment (`admin`/`support`/`auditor` with last-admin protection), deactivation, and unlock, plus unified Workforce IAM, Customer Profile, Customer CIAM, and Login Audit views for `admin`, `support`, and `auditor`.
 
 See [`docs/ADMIN-WEB-FRONTEND.md`](docs/ADMIN-WEB-FRONTEND.md) for endpoint contracts and OIDC BFF security details.
 
@@ -56,3 +56,5 @@ docker build -f Davids.Frontend.Admin/Dockerfile -t davids-frontend-admin:local 
 - [`Davids.Services.AdminIdentity`](https://github.com/dav-Ste/Davids.Services.AdminIdentity) — Administrator OpenIddict `RS256` OIDC Provider (`adminidentitydb`)
 - [`Davids.Services.Customers`](https://github.com/dav-Ste/Davids.Services.Customers) — Customer profiles & order tracking API (`customersdb`)
 - [`Davids.Frontend.Web`](https://github.com/dav-Ste/Davids.Frontend.Web) — Customer Self-Service Web Portal (`CustomerBffCookie` PKCE `S256` BFF)
+
+Use the gateway origin for authentication and APIs: `http://localhost:17320/admin` (or HTTPS when configured). The direct frontend port is an asset host, not an authenticated entry point.
